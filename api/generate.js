@@ -1377,7 +1377,7 @@ const SYSTEM_PROMPT = [
   'Build a COMPLETE 3D object, not a flat picture. The object has real depth: a front, a back and sides. The back is a proper back of the SAME object, inferred from what the object is — never blank, never a flat slab, never missing. The back mirrors the front shape: for a smiley, the back of the sphere is a plain white/grey sphere back with no face; for a key, the back is the same ring, shaft and teeth seen from behind.',
   'Every part must have real depth, at least 0.05 (5% of the model size). A smiley body is a full sphere — round in every view, never a box or a square — not a disc. A key bow is a ring (torus) with real thickness, its shaft is a box about 0.15 thick, its teeth form one connected stepped shape with real thickness. Never build a part as a flat plane or a paper-thin extrusion — a thin slab is wrong.',
   'The body is a round sphere in every view — never stretched tall, wide, or deep; its height equals its width from the front and its depth from the side.',
-  'For a key: the shaft must end in a POINTED tip — a cone or a V point at the bottom, not a flat end; the sketch has a clear V point. The pointed tip is a real point about 0.15 to 0.20 tall — never a stubby nub. The shaft is a straight vertical bar — never bent or curved. The shaft is a LONG bar, about 1.10 tall — never a short stub; the whole key is about 1.80 tall from bow top to tip. The shaft is a solid bar about 0.22 wide — never a hairline. The teeth must be a SINGLE connected stepped bitting shape (one connected stepped shape, not two separate boxes), extending about 0.26 beyond the shaft\'s LEFT edge, matching the sketch. Every tooth reaches about 0.20 to 0.26 beyond the shaft\'s LEFT edge — never a stub tooth that barely sticks out, and never longer than 0.50 beyond the shaft\'s edge. The bitting is a short stepped block near the bottom, about 0.25 tall, ending above the tip point — never so tall that it swallows the tip. The bow must be a full ring (torus) with real thickness — round, never square or diamond-shaped — sized to match the sketch (outer diameter about 0.78, never above 0.95) — do not shrink it. The bow ring touches the top of the shaft — it is joined to the shaft, never floating beside it. The bow sits at the top of the shaft, its centre at or just above the shaft top. A wide bow must sit low enough that the whole key still fits the 2 by 2 by 2 box: at the usual bow height the bow cannot be wider than 0.80 — a 0.95 bow only fits with the bow lowered.',
+  'For a key: the shaft must end in a POINTED tip — a cone or a V point at the bottom, not a flat end; the sketch has a clear V point. The pointed tip is a real point about 0.15 to 0.20 tall — never a stubby nub. The shaft is a straight vertical bar — never bent or curved. The shaft is a LONG bar, about 1.10 tall — never a short stub; the whole key is about 1.80 tall from bow top to tip. The shaft is a solid bar about 0.22 wide — never a hairline. The teeth must be a SINGLE connected stepped bitting shape (one connected stepped shape, not two separate boxes), extending about 0.26 beyond the shaft\'s LEFT edge, matching the sketch. Every tooth reaches about 0.20 to 0.26 beyond the shaft\'s LEFT edge — never a stub tooth that barely sticks out, and never longer than 0.50 beyond the shaft\'s edge. The bitting is a short stepped block near the bottom, about 0.25 tall, ending above the tip point — never so tall that it swallows the tip. Build the bitting as two or three THIN horizontal step boxes stacked and touching (each step about 0.12 to 0.16 tall) — never one tall vertical slab box: a single box 0.25 or taller is wrong. Or build it as one ExtrudeGeometry with the stepped profile. The bow must be a full ring (torus) with real thickness — round, never square or diamond-shaped — sized to match the sketch. The bow\'s OUTER diameter is 2 x (ring radius + tube radius) and it must be 0.70 to 0.95, about 0.78 — never below 0.70. For example ring radius 0.33 with tube 0.06 gives 2 x 0.39 = 0.78, which is right. Ring radius 0.28 with tube 0.06 gives only 0.68 and is too small — do not use it. Do not shrink the bow. The bow ring touches the top of the shaft — it is joined to the shaft, never floating beside it. The bow sits at the top of the shaft, its centre at or just above the shaft top. A wide bow must sit low enough that the whole key still fits the 2 by 2 by 2 box: at the usual bow height the bow cannot be wider than 0.80 — a 0.95 bow only fits with the bow lowered.',
   'The pointed tip sticks out below the bottom of the shaft — the tip point is the lowest part of the key, never buried inside the shaft. Build ONLY the parts in the PARTS list for the key — never add an extra box, arm, tab or lump to the shaft, bow or tip.',
   'Example: a pencil smiley has 4 parts — a big white sphere body, two small black flattened-sphere eyes upper left and upper right, and a black curved-tube mouth lower centre. Its colours line lists only paper white and pencil black.',
   'No markdown fences. No backticks. No explanation. No extra text before or after.',
@@ -3800,7 +3800,28 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
   // beats the cup itself by diagonal. Matching the named body part first
   // gets both right. If no mesh matches the body part, fall back to the
   // largest mesh so the colour/centre checks below report the failure.
-  const bodyPart = parts.find((p) => /body|face|head|main/i.test(p.name)) || parts[0];
+  // V3 R23 (key fix, 15 Nov 2026): a key has no "body" part — its
+  // parts are bow / shaft / teeth / tip. The old fallback (parts[0])
+  // picked the bow, so the generic body centre/shape checks measured
+  // the bow torus (centre y 0.62, side fill 0.958) and EVERY key
+  // failed before the key-shape check ever ran — live repro 3/3 and
+  // local repro of the captured code both failed on the bow-as-body.
+  // For a key, the shaft is the body: it is the central bar the other
+  // parts attach to, its centre sits near the origin, and its PARTS
+  // shape ("long vertical box") never claims round, so the round-body
+  // check stays out of scope for the shaft itself.
+  const _keyName = /\bkeys?\b/i.test(objectName || '');
+  const _keyKinds = new Set();
+  for (const p of parts) {
+    const n = (p.name || '').toLowerCase();
+    if (/shaft/.test(n)) _keyKinds.add('shaft');
+    if (/tooth|teeth|bitting/.test(n)) _keyKinds.add('teeth');
+    if (/bow|ring/.test(n)) _keyKinds.add('bow');
+  }
+  const _isKey = _keyName || _keyKinds.size >= 2;
+  const bodyPart = parts.find((p) => /body|face|head|main/i.test(p.name))
+    || (_isKey ? parts.find((p) => /shaft/i.test(p.name)) : undefined)
+    || parts[0];
   const bodyExpected = expectedFamilies(bodyPart.colour);
   const bodyCandidates = byDiagonal.filter(({ m }) => {
     if (bodyExpected && m.family !== 'unknown' && bodyExpected.indexOf(m.family) === -1) return false;
@@ -4440,7 +4461,14 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
     const claimsRound = bodyPart
       && /sphere|ball|circle|oval|round|circular/i.test(roundText)
       && !/rectangle|cylinder/i.test(roundText);
-    if ((isFace || claimsRound) && bodyObj) {
+    // V3 R23 (key fix): keys are out of scope here, like the kite /
+    // phone carve-outs above — a key's shaft is a rectangular bar and
+    // its bow is a torus, neither is a round body, and the key-shape
+    // check below is the authoritative validator for key geometry.
+    // (Belt-and-braces with the shaft-as-body fix above: even if a
+    // future model describes the shaft as "round", the round-body
+    // check must not fire on a key.)
+    if ((isFace || claimsRound) && bodyObj && !_isKey) {
       const front = silhouetteFillRatio(bodyObj, THREE, 'xy');
       const side = silhouetteFillRatio(bodyObj, THREE, 'zy');
       const normR2 = ellipsoidMaxNormR2(bodyObj, THREE);
