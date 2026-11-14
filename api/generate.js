@@ -808,10 +808,524 @@
 // tilted clamp IS caught (centroid own-frame rim 0.350). A plane-fit
 // of the back disc would be needed for the 10 deg case and is not
 // shipped — disclosed here, not hidden.
+// V3 R16 (J1 D-NEW1/D-NEW2/D-NEW3/D-NEW4 + J2 H10/H11/H12/§9d/§9e/§9f/§9g/§9h
+// — the R15-gap round): (1) BOW DEPTH (H10): keyBowDepth measures the
+// bow ring's depth along its own axis in world space; bar depth >= 0.08
+// (P7b 0.12, tube-tilt 0.10, Q2 squashed bow 0.03 FAILS, a bow flattened
+// to 0.06 still FAILS, 0.08 passes at the bar). (2) SECOND-BODY FLOOR
+// (H11): the body-count rule now also counts an UNMATCHED body-coloured
+// mesh with max-dim > 0.30 and min-dim > 0.10 — the r 0.22 chin (0.44)
+// FAILS on body-count, the r 0.10 chin (0.20) still passes by design,
+// the R9 flat white triangles stay exempt (min-dim 0), PARTS-listed
+// features stay exempt (the new floor is unmatched-only). (3) TOOTH
+// ORIENTATION (H12): each tooth mesh at most 0.18 tall in the shaft
+// frame (P7b 0.12/0.16 pass, tube-tilt 0.06 passes, Q5b slabs 0.26/0.20
+// FAIL on the orientation reason; ExtrudeGeometry whole-profile
+// bittings are exempt — their height is the bitting span, governed by
+// the span check; the check runs after the bow-position check so E-VB
+// keeps its pinned bow-position reason). The prescribed "width > height
+// per tooth" was MEASURED and does NOT separate the fixtures (P7b h/w
+// 0.46/0.80 vs Q5b 0.70/0.65), so the shipped bar is absolute tooth
+// height — stated here, not hidden. (4) CUT BOUNDARY, DECIDED (J1
+// D-NEW3): the boundary sits at ~0.0425 — cut 0.042 PASSES, 0.043 FAILS
+// on the own-frame relief reason — and it STAYS there by decision, not
+// drift: moving it back to ~0.0445 would mean weakening the own-frame
+// relief layer that also guards tilted cuts and clamps, the pinned
+// points (0.04 PASS / 0.05 FAIL) never moved, and the sketch anchors
+// only rim 0.000. The thinnest margin over the WHOLE bar is 0.003 (cut
+// 0.042, own-frame relief 0.327), not the 0.009 of the world sweep
+// alone. (5) TILT FIGURE (J1 D-NEW2): the own-frame reasons now word
+// the tilt as the AXIS tilt ("the body's own centroid axis sits 0.2
+// deg from the back") and name the estimator — never as the face's
+// tilt. (6) R16 CORRECTION (J1 D-NEW1): layer (a), the world per-face
+// rim, is the R14 BAND-MINIMUM statistic (minimum perpendicular radius
+// in the 0.02 band) generalised to six faces — NOT the epsilon-max
+// statistic; epsilon-max lives only in bodyAxisExtremeRadius, layers
+// (b)/(d). The R15 build report §1(a) mislabelled it; the generate.js
+// header never did. The R15 header's "(world rim ~0.26...)" for the 10
+// deg tilted clamp is likewise corrected: the shipped world band-min
+// rim there is 0.098; 0.253 is the world epsilon-max rim along -z.
+// (7) SPIKE BOUNDARY (J1 D-NEW4): the pole-spike hole is a disc of
+// radius ~0.264 around the pole — helper-level rim 0.321 at r=0.26
+// (PASS on the rim layer) / 0.344 at r=0.27 (FAIL). Pinned at helper
+// level in the R16 suite: end-to-end, r=0.26 now FAILS on the new
+// spike-gap layer (item 9), which supersedes the R15 end-to-end pass.
+// (8) TILTED CLAMP, CLOSED (J2 §9d): the cone search (layer (e)) — the
+// epsilon-max rim over directions in a +-15 deg cone around each
+// own-frame axis — reads 0.390 on a 10 deg tilted clamp (0.393 at 5
+// deg, 0.387 at 15 deg) while cut-0.04 reads at most 0.313 at any tilt
+// and a compliant sphere 0.057. A least-squares plane-fit of the back
+// disc was MEASURED and REJECTED as the mechanism: the 0.05 back slab
+// holds only a narrow arc of the disc (eigenvalues ~[0, 0.02, 0.019]),
+// so its fitted normal misses the true normal by 5.2/11.2/16.0 deg at
+// 5/10/15 deg tilt and the rim along it reads 0.04/0.066/0.018 toward the
+// FRONT (R18 CORRECTION, J1 D-NEW10: epsilon-max; the R16/R17 figure
+// did not reproduce — no tried definition yields its second/third values.
+// R17 CORRECTION, J1 D-NEW6: those are the front-side readings;
+// toward the BACK — the side a back-disc check must read — the rim
+// along the same fitted normal reads 0.351/0.235/0.173, which catches
+// the 5 deg clamp but still misses 10 deg (0.235) and 15 deg (0.173),
+// so the rejection stands on the normal error, and the rim figures
+// are quoted with their side from here on). On R16
+// code the 10 deg clamp already FAILS on layer (b) via the fixed
+// centroid axis (rim 0.409), so the cone is the second catcher, not
+// the first. (9) POLE SPIKE, CLOSED (J2 §9e): the axial gap ratio
+// (layer (f)) — g0 > 0.03 AND g0/g1 > 5.0 — catches the clean pole
+// spike (ratio 10.4), the spike on a clamp (18.0) and spikes at r =
+// 0.26/0.27 (7.143), while clean spheres read <= 1.0 (48-seg) / 0.353
+// (8-seg — the R15 builder's coarse-sphere objection, measured: the
+// bare pole gap is 0.061 but the ratio is 0.353, so the ratio, not
+// the gap, is the bar), cut domes <= 2.333, clamps 1.75, and the
+// closest clean fixture, icosahedron detail-1, 3.606. The g0 floor is
+// 0.03, not 0.02: the R16 suite caught the 0.02 floor FALSE-FAILING a
+// wobbly-but-faithful body (radial noise 0.06: worst g0 0.022, ratio
+// 5.5 on the +x face), while the smallest real spike's g0 is 0.05 —
+// the floor sits in the measured gap 0.022-0.05. (10) CENTROID
+// BIAS, DIAGNOSED AND FIXED AT THE SOURCE (J2 §9g): neither R15
+// suspect was the cause — the bbox centre sits <=0.003 off the true
+// symmetry axis, and dedup rounding IMPROVES the axis (raw centroid:
+// 6-9 deg off on cuts, 15-25 deg on clamps). The source is the
+// centroid itself: the discrete lat/long vertex set is not perfectly
+// symmetric about the cut axis, so the deduped centroid sits
+// ~0.0005-0.001 off-axis, and |d| is small (~0.02), so that becomes
+// ~1 deg on cuts and (via the bbox-centre reference) a non-tracking
+// axis on clamps (error ~= tilt). The fix: the reference point is now
+// the Kasa least-squares sphere-fit centre (bodySphereFitCentre),
+// rotation-invariant and exact for sphere-vertex bodies — the
+// centroid axis is now EXACT (0.000 deg) on cut domes at 0/5/10/30 deg
+// and a constant 1.093 deg on clamps at 0/5/10/15 deg (the 1.093 deg
+// is the fit centre's own 0.004 bias from the disc vertices, fixed in
+// the body frame). CAVEAT: the Kasa reference kills the signal on
+// SHALLOW clamps — |d| is 0.0005-0.0018 at clamps 0.03-0.06 (under the
+// 0.002 threshold) vs 0.015-0.029 against the bbox centre — so the
+// bbox-centroid axis is KEPT as a third estimator: the layer maxes
+// over covariance, centroid-vs-Kasa (tracking) and centroid-vs-bbox
+// (signal size), each covering cases the others miss. (R17
+// CORRECTION, J1 D-NEW5: the full |d| ladder is 0.000484 / 0.000863 /
+// 0.001313 / 0.001820 at clamps 0.03 / 0.04 / 0.05 / 0.06 and 0.002099
+// at 0.065 — the degeneracy flip sits between 0.06 and 0.065, and the
+// thinnest approach to the 0.002 threshold is 0.000099 (clamp 0.065,
+// over) / 0.000180 (clamp 0.06, under), 7x thinner than the 0.05
+// example (0.000687) the R16 report disclosed. No verdict depends on
+// it: clamp 0.06 FAILS via the bbox third estimator (rim 0.383) and
+// clamp 0.065 FAILS via the Kasa axis.) (11) ASPECT BAND, MEASURED AND
+// DECIDED (J2 §9h): a 1.06 ellipsoid reads side aspect 0.943 (front
+// 0.943 for the x-stretch) and FAILS, a 1.05 ellipsoid reads 0.952 and
+// PASSES, a 1.08 ellipsoid reads 0.926; wobbly bodies (radial noise
+// 0.02/0.04/0.06) read aspect <= 1.006 and rim <= 0.13 — lumpiness does
+// NOT push a faithful body to 1.06, and the 1.06 ellipsoid reads rim
+// 0.000, so the aspect band is the ONLY guard for a stretched-but-round
+// body. DECISION: the band STAYS 0.95-1.05 in this round; any move
+// goes to R17 on a real wobbly fixture that reads 1.06+ while looking
+// faithful. V3 R17 (J2 H13/H14/H15 + J1 D-NEW5-D-NEW8): (1) H13
+// SUB-FLOOR SECOND BODY — the H11 floor moves 0.30 -> 0.25 for
+// UNMATCHED body-coloured meshes (min-dim > 0.10 conjunct kept): chin
+// r 0.145 (maxD 0.29), side lump r 0.14 (0.28) and chin box 0.29 all
+// FAIL on body-count now, Q4 (0.20) still PASSES by design (margin
+// 0.05), new boundary maxD 0.25 PASSES / 0.26 FAILS. The protrusion
+// alternative was MEASURED and REJECTED: Q4's chin protrudes 0.150
+// below the body bbox, MORE than the H13 chin (0.125) and EQUAL to
+// the chin box (0.150) — no protrusion threshold separates them —
+// and the centre-outside-bbox alternative does not catch the chin
+// cases either (centre y -0.78 sits inside the body bbox -0.8..0.8).
+// (2) H14 SURFACE SMOOTHNESS — new statistic bodySurfaceRoughness:
+// the p90 of |radius - mean radius of spatial neighbours within
+// D = clamp(2.2 x median nearest-neighbour distance, 0.15, 0.6)|
+// over the deduped body vertices, centre = Kasa fit centre. Bar
+// p90 > 0.022 (layer (g), after the spike layer): clean/coarse/
+// icosahedron bodies read exactly 0.000, low-frequency undulation
+// A 0.06 reads 0.005, hash-noise wobbly reads p90 0.015 / 0.029 /
+// 0.042 at noise 0.02 / 0.04 / 0.06 — so 0.02 PASSES (margin 0.007)
+// and 0.04 / 0.06 FAIL on smoothness. The bar is the midpoint of
+// the two judged rungs (0.0151 / 0.0292 unrounded); noise 0.03 reads
+// exactly 0.022 and PASSES at the bar (margin 0.000, pinned). The
+// spike g0 floor STAYS at 0.03 — the floor is the wrong instrument
+// for lumpiness (J2 §7). (R18 CORRECTION, J1 D-NEW9 + J2 H16: the
+// 0.022 bar compared the round3'd p90, so its effective threshold
+// was 0.0225, not 0.022 — noise 0.03's true p90 is 0.0222, already
+// over the written bar, and noise 0.029 (0.0216, genuinely under)
+// read the same 0.022 as 0.030. J2 blind-scored noise 0.03 at 8.5,
+// below the bar. R18 moves the bar to 0.021 AND compares the
+// unrounded p90, so the effective threshold is exactly 0.021:
+// 0.02 (0.0151) and 0.025 (0.0187) still PASS, 0.028 (0.0209)
+// PASSES with margin 0.0001 — the knife-edge moves, it does not
+// vanish — 0.029 (0.0216) and 0.03 (0.0222) now FAIL. J2's 0.025
+// (~8.8, still passing at 0.021) is NOT closed by jumping to 0.018
+// in this round — that needs fresh handmade fixtures first.) (3) H15 TILTED SHALLOW CLAMPS — new fourth
+// own-frame estimator bodyCentroidAxisRaw: the dedup-centroid
+// direction vs the Kasa centre WITHOUT the 0.002 |d| threshold
+// (floor 1e-9, null only for a truly symmetric body). Measured: the
+// unthresholded direction is accurate to ~1.04 deg on every shallow
+// clamp (0.04-0.076, 0-20 deg tilt), and the own-frame RELIEF
+// (eps 0.005) along it reads 0.348-0.349 for clamp 0.05 at 0/5/10/
+// 15/20 deg and 0.371-0.372 for 0.06 at 10/15/20 deg — while clamp
+// 0.04 reads 0.307-0.308 at every tilt (margin 0.022) and cut 0.04 /
+// 0.042 read 0.313 / 0.320. So the raw axis joins the own-frame
+// lists for layers (b)/(d)/(e)/(f): 0.05 @ >=5 deg now FAILS on the
+// own-frame relief reason, 0.06 @ >=10 deg on the own-frame rim
+// (0.366) or relief (0.371); 0.04 stays the calibrated boundary
+// PASS at every tilt. The eps-0.001 rim along the raw axis alone
+// would NOT close it (0.307-0.308 at ~1 deg error — the rim drops
+// 0.344 -> 0.305 between 0.5 and 1 deg error on a 0.05 disc), which
+// is why the relief layer carries the closure. (4) D-NEW5/D-NEW6
+// corrected in this header (see items (8)/(10) above). (5) D-NEW7:
+// the key-value count is 0 key VALUES (the pattern string occurs
+// once in the sentence that states it — the R16 report's "0 in this
+// report" was self-referentially wrong by one). (6) D-NEW8: the R16
+// report §6 line-count artifacts are 5053/1590 on the shipped file
+// (the 5051/1588 figures were pre-fix). (7) Boundaries pinned in
+// the R17 suite: H11 floor maxD 0.25 PASS / 0.26 FAIL; tooth height
+// 0.18 PASS / 0.19 FAIL. V3 R18 (J2 H16 + J1 D-NEW9-D-NEW12 + J3
+// items): (1) H16/D-NEW9 SMOOTHNESS BAR 0.022 -> 0.021 + UNROUNDED
+// COMPARISON (both, deliberately): the bar move alone would leave
+// the rounding mechanism in place with effective threshold 0.0215,
+// and the rounding fix alone (unrounded vs 0.022) would close 0.03
+// by only 0.0002; together the effective threshold is exactly
+// 0.021 — the bar means what it says. bodySurfaceRoughness now
+// returns p90Raw (unrounded) alongside the round3 p90 used in the
+// reason text; the call site compares p90Raw > 0.021. Measured
+// hash ladder (unrounded): 0.02 -> 0.0151 PASS (margin 0.0059),
+// 0.025 -> 0.0187 PASS (margin 0.0023), 0.028 -> 0.0209 PASS
+// (margin 0.0001, the residual knife-edge, disclosed), 0.029 ->
+// 0.0216 FAIL, 0.03 -> 0.0222 FAIL (H16 CLOSED, J2 8.5), 0.031 ->
+// 0.0230 / 0.035 -> 0.0257 / 0.04 -> 0.0292 / 0.06 -> 0.0424 FAIL.
+// No jump to 0.018 (J2: re-calibrate 0.025 with fresh handmade
+// fixtures first; 0.025 scores ~8.8 and still passes at 0.021).
+// (2) ROTATED MID-FREQUENCY PATTERNS (J2 limitation): the
+// sin(4th)cos(6ph) A 0.06 pattern probed at 7 poles (pole
+// redefinition) + 5 rigid rotations of the exact R17 field — every
+// orientation FAILS on some layer (z/x: cone bottom-flat; y:
+// smoothness p90 0.028; diagonals: own-frame relief 0.339-0.417 /
+// rim). p90 is orientation-sensitive (0.014-0.028 across poles) but
+// no orientation escapes ALL layers; p90 is exactly 0.014 at every
+// rigid rotation (invariance pin). No new hole, no statistic change.
+// (3) D-NEW10: front-side plane-fit rim figures restated as
+// 0.04/0.066/0.018 (epsilon-max) in the header item (8) and the
+// bodyConeSearchRim comment; back-side 0.351/0.235/0.173 exact,
+// rejection stands on the normal error. (4) D-NEW11: the stale
+// "0.30" floor in the body-count comment block fixed to 0.25 (code
+// and reason text were already correct). (5) D-NEW12: the §8
+// inventory in the R18 report now lists the exact-bar pass-side
+// margins tooth 0.18 (0.00) and H13 maxD 0.25 (0.00). (6) J3 item
+// (1): the R17 report's "46 lines" for the J2 R16 newprobes diff
+// is 36 lines (4+4+4+8+16); substance unaffected, tally flips
+// 18/23 -> 10/31. Recorded in the R18 report; the R17 report file
+// is NOT edited. (7) J3 item (2): the lowfreq-0.06 fixture's mouth
+// renders as two pieces because the body was deformed AFTER the
+// mouth was placed from clean-sphere coordinates — measured: the
+// old mouth's tube top sits 0.0143 below the true deformed surface
+// at the worst column (min radial clearance -0.059 vs compliant
+// -0.005). A mouth placed on the TRUE surface cannot pass the
+// current attachment check: the true surface sits up to 0.0564
+// above the checker's bbox-ellipsoid frontSurfaceZ at the mouth
+// columns, so a true-surface mouth fails attachment (worst gap
+// ~0.106 vs ATTACH_TOL 0.05; the radial-displacement attempt
+// failed with worst gap 0.06). The fixture is DISCLOSED as a known
+// artifact in the R18 report, not silently fixed — the fixture
+// still pins p90 0.005 and passes e2e, and frontSurfaceZ is
+// LOAD-BEARING / frozen, so no checker change ships in this round.
+// V3 R19 (J2 H17 + J1 D-NEW13/D-NEW14 + J3 item (2)): (1) H17
+// SMOOTHNESS BAR 0.021 -> 0.017, RE-CALIBRATED WITH FRESH
+// HANDMADE-BODY FIXTURES ACROSS FIVE NOISE FAMILIES (not the hash
+// ladder alone). The R18 bar left hash 0.025 (J2 ~8.8) and 0.028 (J2
+// ~8.6) passing; the blind-scored visual split on the hash ladder
+// is 9.0 at p90 0.0151 (noise 0.02) vs 8.8 at 0.0187 (noise 0.025),
+// so the split interval is [0.0151, 0.0187] and the bar must sit
+// INSIDE it. Fresh families (all full-smiley fixtures, p90 measured
+// with gen + an own implementation, agreeing to <1e-9): LOWFREQ
+// smooth sin(2th)cos(3ph) A 0.02-0.12 reads 0.0020-0.0107 — even a
+// +-12% slow undulation stays far below the bar (faithful);
+// HARMONIC smooth sum A 0.03-0.08 reads 0.0011-0.0030 (faithful);
+// GAUSS-BROAD smooth dents (sigma 0.5, 6 bumps) A 0.02-0.08 reads
+// 0.0005-0.0022 (faithful, renders as a handmade clay ball);
+// HIGHFREQ sin(8th)cos(12ph) z-pole A 0.01-0.03 reads 0.0071-0.0204,
+// y-pole A 0.02 reads 0.0168 (renders like the 9.0 hash anchor —
+// faithful) and A 0.03 reads 0.0249 (fails smoothness); MIDFREQ
+// sin(4th)cos(6ph): y-pole A 0.03 reads 0.0170 and renders visibly
+// lobed/wavy front AND side, the same family as the y-pole A 0.04
+// J2 blind-scored 8.3 (CORRECT FAIL, so the y-pole A 0.04 fail
+// STAYS a fail at the new bar, over by 0.0042); z-pole A 0.04/0.05
+// read 0.0096/0.0117 and pass everything (unscored — see (5)).
+// SEED SPREAD (5 hash draws per amplitude): noise 0.02 reads
+// 0.0144-0.0152, noise 0.025 reads 0.0180-0.0187 — the two
+// distributions are disjoint with a gap [0.0152, 0.0180]. The bar
+// 0.017 sits INSIDE that gap (0.0018 above the 0.02 max, 0.0010
+// below the 0.025 min) and closes 0.025 on 5/5 seeds. The tasked
+// candidate 0.018 sits ABOVE the gap (0.018 > 0.01796): it closes
+// 0.025 on only 3/5 seeds (seed2 0.017976 and seed4 0.017958 PASS
+// at 0.018 by 0.00002/0.00004) — NOT shipped, measured rejection.
+// 0.020 is also NOT shipped: it leaves the J2-blind-scored 8.8
+// passer (0.025, margin 0.0013) and only closes 0.027 by 0.0001.
+// The new knife-edge pair is hash 0.022 PASS (0.0166, margin
+// 0.0004) / 0.023 FAIL (0.0174, over by 0.0004) — the 0.023/0.024
+// renders are visually indistinguishable, as 0.028/0.0285 were:
+// the visual gradient is smooth, so NO threshold on this statistic
+// can make the boundary itself visible; the bar can only sit inside
+// the blind-scored split interval, which 0.017 does (mid-interval).
+// The statistic's seed jitter is +-0.0004 at fixed amplitude, so
+// every "closes X" claim is seed-conditional at that level —
+// disclosed, not hidden. (2) D-NEW13: the smoothness reason prints
+// the RAW p90 to 4 decimals when the rounded p90 equals the bar
+// (e.g. hash 0.023 reads "jumps 0.0174 ... bar 0.017" and midfreq
+// y-pole A 0.03 reads "jumps 0.0170 ... bar 0.017"); ordinary
+// fails still print the rounded value (0.03 prints 0.022). (3)
+// D-NEW14: the 0.026 (margin 0.0015) and 0.027 (0.0009) rungs at the
+// old bar are listed in the R19 report §8. (4) J3 item (2): the
+// suite's radial pin now quotes BOTH variants with the builder
+// noted — R18 builder lowfreqRadialDisp() 0.059/-0.079 AND the
+// R17-variant lowfreqRadialDispR17() 0.06/-0.073; both fail
+// attachment. (5) NEW HOLES FOUND BY THE CALIBRATION (disclosed,
+// NOT fixed by the bar — unreachable at any bar >= 0.012 without
+// false-failing hash 0.02 at 0.0151): midfreq z-pole A 0.05 PASSES
+// everything (p90 0.0117, cone best 0.311 vs bar 0.33, margin 0.019)
+// yet renders as a hexagonal angular blob with a chevron mouth;
+// gauss-dimpled A 0.03 PASSES everything (p90 0.0071 — the statistic
+// under-reads ~0.12-unit-wide bumps, near the neighbour-ring width
+// D 0.15 — cone best 0.296 vs bar 0.33, margin 0.034) yet renders
+// visibly lumpy. Both need J2 blind scores and, if below bar, a
+// cone/second-scale fix in a later round — the rim/relief bars are
+// FROZEN, so no fix ships here. (6) Tessellation: hash 0.02 reads
+// 0.0151/0.0153/0.0155/0.0174 at seg 48/32/24/16 — p90 rises as the
+// mesh coarsens; at 16 segments it reads 0.0174, over the new bar
+// at helper level (its full verdict already fails on the spike
+// layer, unchanged).
+// KEPT, NOT RE-TUNED: rim/relief bars (0.33), bow hole bar
+// (0.35), teeth-shape type-form check, key extra-part rule, turn ratio
+// 0.85, tube bar 25°, body-count 0.70 disjunct, apex 0.05, bow-position
+// -0.05, per-tooth cap 0.50, oval deviation 0.05, listed bound 0.35,
+// mouth thickness bar, frontSurfaceZ dispatch (LOAD-BEARING). NOT
+// ADDED: shaft-shape / shaft cross-section check, shell/openness check,
+// box-width bar (proven dead, R13). No maxDuration in vercel.json
+// (deploy verification only). No prompt change (the prompt already says
+// the body is a full sphere and the bow is a full ring with a real hole).
+// V3 R20 (J2 H18 + H19 + J1 D-NEW15 + D-NEW16): (1) H18/H19 — CONE
+// ANGULARITY (cone radius > 0.27 AND a second far-apart flat direction
+// > 0.18; the cone bar is 0.27, recalibrated at seg 48; the rim/relief
+// bars stay 0.33). The cone radius itself separates at seg 48: faithful
+// max 0.252 (lowfreq wave 0.08 — renders a smooth egg,
+// borderline-faithful by my own renders; hash 0.02 max 0.199 over 10
+// seeds, hash 0.022 max 0.208 over 5 seeds, harmonic 0.08 0.198,
+// gauss-broad 0.06 0.171, highfreq y 0.02 0.152, compliant 0.057) vs
+// hole min 0.289 (midfreq z-pole A 0.04 — renders an unmistakable
+// hexagon in back AND front views; A 0.05 0.311, x-pole 0.05 0.316,
+// 101-pole 0.05 0.311; gauss-dimpled 0.03 0.296, 0.035 0.322). A PLAIN
+// cone bar at 0.27 CANNOT ship, measured in the R20 suite run: it flips
+// two pinned passing fixtures — cut 0.042 reads cone 0.32 (HIGHER than
+// both holes, so any threshold catching them fails the cut and moves
+// the pinned cut boundary 0.0425) and the H15 tilted clamp 0.04 @10 deg
+// reads cone 0.284. The second conjunct is the rim-map second peak
+// (bodyConeSecondRim: best epsilon-max rim over a uniform 120-direction
+// sphere, and the best among directions >30 deg from the best
+// direction's axis line): one flat face alone reads a LOW second
+// (cut 0.042 second 0.101, cut 0.04/0.043/0.05 second 0.104/0.106/
+// 0.110, clamp 0.04 @10 deg second 0.083, clamp 0.04 @0 deg 0.092,
+// clamp 0.076 @0 deg 0.111) while a hexagonal/faceted body reads a HIGH
+// second (midfreq z 0.05 0.311, z 0.04 0.293, gauss-dim 0.03 0.256,
+// gauss-dim 0.035 0.262, gauss-dim3 seed-777 0.03 0.239). Second bar
+// 0.18 sits in the measured gap (0.111, 0.239): 0.069 above the
+// cut/clamp max, 0.059 below the seed-777 min. The rim-map second peak
+// ALONE is rejected (faithful lowfreq wave 0.06 reads 0.326, harmonic
+// 0.08 0.253 — both above the holes) and silhouette spread/harmonics
+// are rejected the same way (gauss-broad 0.06 spread 0.148 vs z-hole
+// 0.020); a flatMax-alone bar is dead (lowfreq wave 0.08 reads flatMax
+// 0.255 vs holes 0.258 — a 0.003 gap), as is the cone+flatMax
+// conjunction (lowfreq wave 0.10 FAILS it while wave 0.12 PASSES it —
+// incoherent, margins 0.001-0.003). Rejected cone-bar values (plain
+// bar, for the record): 0.26 (faithful margin 0.008 vs wave 0.08 —
+// knife-edge) and 0.28 (hole margin 0.009 vs midfreq 0.04, and
+// gauss-dim3 seed-777 A 0.03 at 0.282 escapes by 0.002). SPIKE LAYER
+// REORDER (R20): the spike layer moved BEFORE the cone layer — a single
+// spiked vertex explains the cone reading (clean pole spike reads cone
+// 0.279), so the spike diagnosis must win; measured, no cone-failing
+// fixture reads the spike check (max g0 0.010 vs the 0.03 floor — the
+// nearest is midfreq 101-pole 0.04 at g0 0.010, ratio 5.0), so the move
+// changes no other first-fire, and the pole-spike and hash-0.02-seg16
+// fixtures keep their spike reasons. The conjunction newly fails only
+// currently-passing fixtures, all plausibly unfaithful by the visual
+// gradient (midfreq 0.04 poles 0.285-0.306, midfreq z 0.045 0.312,
+// gauss-dim3 0.03 0.282, lowfreq wave 0.10 0.281 and 0.12 0.308 —
+// pointed top / potato in my renders) — J2 to blind-score them. ONE
+// reason flips on an already-failing fixture: midfreq y-pole A 0.06
+// (p90 0.028) now fails on the cone-conjunction reason (cone 0.291,
+// second 0.337) instead of smoothness — verdict FAIL unchanged, and
+// the conjunction reason is accurate (the body IS faceted). (2) H19
+// SECOND-SCALE QUESTION — NO STATISTIC SHIPS: three second-scale
+// families measured and ALL rejected by the same two faithful bodies.
+// Fixed-D p90 (D 0.30/0.45/0.60): gauss-dim 0.03 reads 0.0174/0.0230/
+// 0.0247 but faithful lowfreq wave 0.06 reads 0.0188/0.0340/0.0466 —
+// higher at every D. DoG band-pass |mean(D1)-mean(D2)| p90 (4 pairs):
+// gauss-dim 0.03 reads 0.0107/0.0171/0.0195/0.0118 but lowfreq 0.06
+// reads 0.0135/0.0289/0.0414/0.0288 — higher at every pair. Quadratic-
+// fit residual p90 (D 0.30/0.45): gauss-dim 0.03 reads 0.0058/0.0131
+// but the faithful hash-0.02 anchor reads 0.0150/0.0148 and highfreq y
+// 0.02 reads 0.0194/0.0201 — both higher (white noise is maximally
+// non-quadratic). At every scale either the hash anchor (~0.0145 floor)
+// or lowfreq 0.06 sits above the dimpled body, so no second-scale bar
+// can catch H19 without false-failing a faithful body. H19 closes via
+// the cone conjunction instead (cone 0.296 > 0.27 AND second 0.256 >
+// 0.18). REMAINDER (seed variance): gauss-dimpled A 0.03 seed-999 reads
+// cone 0.238 and escapes every measured statistic (p90@0.45 0.0185,
+// DoG 0.0133, quad 0.0107); gauss-dim 0.02 (0.234) and 0.025 (0.257)
+// pass the conjunction — unscored, plausibly borderline-faithful.
+// (3) D-NEW15 — CALIBRATION TESSELLATION PINNED (seg 48): both bars
+// are seg-48 calibrated. The cone bar's faithful margin does NOT
+// survive coarsening: lowfreq wave 0.08 reads cone 0.252 at seg 48 but
+// 0.285 at seg 32 (would fail at seg 32 — documented tessellation
+// limitation, same class as the smoothness seg-16 crossing); hash 0.02
+// reads cone 0.199/0.215/0.219/0.275 at seg 48/32/24/16 (seg-16
+// helper-level crossing, verdict unchanged — fails on the spike layer
+// first); clean seg-8 reads 0.259 (passes at 0.27 by 0.011). (4)
+// D-NEW16 watch: re-measured, no flip — midfreq y-pole A 0.03 still
+// FAILS by 0.00003 (raw 0.017030), highfreq y-pole A 0.02 still PASSES
+// by 0.0002 (raw 0.016817); no bar move.
+// KEPT, NOT RE-TUNED: smoothness bar 0.017, rim/relief bars (0.33), bow
+// hole bar (0.35), bow-depth bar (0.08), tooth-height bar (0.18), spike
+// bars/reasons, aspect band (0.95-1.05), spike g0 floor (0.03), H13 floor
+// (0.25), H15 centroid-raw estimator behaviour, teeth-shape check, key
+// extra-part rule, turn ratio 0.85, tube bar 25 deg, body-count 0.70
+// disjunct, apex 0.05, bow-position -0.05 (KEEP), per-tooth cap 0.50,
+// oval 0.05, listed bound 0.35, mouth thickness bar, frontSurfaceZ
+// dispatch (LOAD-BEARING, frozen), cut boundary ~0.0425. NOT ADDED:
+// shaft-shape check, shell check, box-width bar. No maxDuration in
+// vercel.json. No prompt change.
+// V3 R21 (J2 H20/H21 question + J1 D-NEW17/18/19/20 + J3 corrections):
+// NO LOGIC CHANGE SHIPS THIS ROUND — measured, not guessed. The item-1
+// question (what separates gauss-dim seed-999 cone 0.238 and A 0.025 cone
+// 0.257 from faithful bodies) was measured across six statistic families
+// on 8 gauss-dim seeds x A 0.02/0.025/0.03 plus all faithful families:
+// (1) fixed-D p90 at D 0.08/0.10/0.12/0.15 (NEW small scales — R20 only
+// measured D 0.20 and above): seed-999 reads 0.0021 at D 0.08, EQUAL to
+// faithful gauss-dim 0.02 at 0.0021; dead. (2) SH-residual p90 L 2..8:
+// lowfreq wave blocks L 2..5 (0.06 reads 0.0488 at L3, 0.08 reads 0.0651);
+// at L 6..8 the hash anchor (0.0143-0.0148) and highfreq y 0.02 (0.0173)
+// are excluded only by the cone leg, and the gauss-dim distributions
+// OVERLAP across seeds — L8 p90: A 0.02 max 0.0063 (seed-777) vs A 0.025
+// min 0.0061 (seed-2024); dead. (3) SH band p90/RMS, bands 4-8/5-8/5-9/
+// 6-9/6-10/7-10/5-10/4-10: EVERY band overlaps across the 8 seeds
+// (band 5-8 p90: A 0.02 max 0.0121 seed-2024 vs A 0.025 min 0.0115
+// seed-999); dead. (4) SH-residual p90 at L 10: gap 0.0002 across seeds
+// (A 0.02 max 0.0041 vs A 0.025 min 0.0043) — below the round3
+// quantisation of 0.001 and a ~10x production-fit cost; dead.
+// (5) Local curvature, p90 of |Laplacian| from the local quadratic fit
+// (D 0.30): faithful lowfreq wave reads HIGHER than every target (0.06:
+// 1.587, 0.08: 2.192, targets 0.744-1.273) and the gauss-dim seeds
+// overlap (A 0.02 max 0.846 default seed vs A 0.025 min 0.744 seed-1);
+// dead. (6) Total radial std and p90|r-mean|: the scored faithful
+// gauss-dim 0.02 default seed IS the A 0.02 max (std 0.0098) and it
+// overlaps seed-1 at 0.025 (0.0097); lowfreq 0.08 (std 0.0375, cone
+// 0.252) blocks the cone conjunction; dead. (7) Rim-map distribution
+// (third peak, counts above 0.20/0.22, rim p90/mean): lowfreq 0.08,
+// highfreq y 0.02 and coarse seg-8 all read higher than the targets;
+// dead. (8) Cone-bar moves: 0.25 false-fails faithful lowfreq 0.08
+// (cone 0.252, second 0.382) and coarse seg-8 (0.259/0.379) under the
+// conjunction, and still misses seed-999 at 0.238 in the plain form;
+// 0.23 false-fails the faithful gauss-dim 0.02 anchor itself (cone
+// 0.234, second 0.198); dead. STRUCTURAL FACT: at fixed amplitude the
+// gauss-dim seed spread is x1.26 (radial std 0.0078-0.0098 at A 0.02),
+// equal to the x1.25 amplitude step 0.02 -> 0.025 — no amplitude
+// statistic can separate the ladder across seeds in general. H20
+// (seed-999, ~8.6) and H21 (A 0.025, ~8.8) STAY OPEN, disclosed with
+// measurement; no guess ships. The two scored escapees and the scored
+// faithful fixtures are still separated on the scored seeds alone
+// (e.g. L8 p90: def 0.025 reads 0.0075 vs def 0.02 reads 0.0060), but a
+// bar on that gap would false-fail seed-777 at 0.02 (0.0063) and miss
+// seed-2024 at 0.025 (0.0061) — seed-conditional, NOT shippable by the
+// loop's own standard (cf. R19 smoothness bar: 5/5 seeds disjoint).
+// D-NEW17 (CORRECTED): the cone gap is (0.252, 0.282) — faithful max
+// lowfreq 0.08 at 0.252, hole min gauss-dim3 seed-777 at 0.282 — margins
+// 0.018 / 0.012. The R20 report's "hole min 0.289" is the MIDFREQ-ONLY
+// min (z-pole A 0.04); the global hole min is 0.282. D-NEW18 (WATCH):
+// gauss-dim A 0.025 passes on the cone clause alone by 0.013 (cone
+// 0.257, second 0.254 already above the bar); moot if H21 closes, else
+// stays a watch item. D-NEW19 (DISCLOSED + PINNED): hash second max
+// 0.175 is seed-set-conditional — J1's own hash seed variants read up
+// to 0.192, above the second bar; the conjunction's safety for hash
+// rests ENTIRELY on the cone clause (hash cone max 0.199). The two
+// variants reading second above the bar are pinned in the R21 suite as
+// regression pins (they must still PASS on the cone clause). D-NEW20
+// (COUNTS, CORRECTED): 10 first-pass failures (r16: 1, r17: 1, r18: 4,
+// r19: 4) and 12 pin-updated checks (r19 has 6 — the H18/H19 pins
+// predated the first r19 run); the R20 report never said 7. J3
+// CORRECTION (1): clamp 0.04 at 10 deg PASSES (200 handler + 22/22
+// browser, R19 and R20); the failing clamp is 0.05 at 10 deg (relief
+// 0.349, NOT the conjunction). Do not treat 0.04 at 10 deg as a failing
+// fixture. J3 CORRECTION (2): the wave 0.10/0.12 conjunction closure is
+// fixture-specific — the smileyLowFreq wave fixtures fail on the
+// conjunction, while the patternedSmiley('low', 0.12) variant fails
+// earlier on attachment (mouth gap 0.108); name the fixture variant
+// when citing the closure. J3 OPEN ITEM (fixture artifact, DO NOT
+// CHASE): lowfreq-0.08 mouth fragment (same artifact class as 0.06).
+// D-NEW16 watch pair unchanged (midfreq y A 0.03 fails by 0.00003,
+// highfreq y A 0.02 passes by 0.0002) — recorded, no bar move.
+// KEPT, NOT RE-TUNED: smoothness bar 0.017, rim/relief bars (0.33), bow
+// hole bar (0.35), bow-depth bar (0.08), tooth-height bar (0.18), spike
+// bars/reasons, aspect band (0.95-1.05), spike g0 floor (0.03), H13 floor
+// (0.25), H15 centroid-raw estimator behaviour, teeth-shape check, key
+// extra-part rule, turn ratio 0.85, tube bar 25 deg, body-count 0.70
+// disjunct, apex 0.05, bow-position -0.05 (KEEP), per-tooth cap 0.50,
+// oval 0.05, listed bound 0.35, mouth thickness bar, frontSurfaceZ
+// dispatch (LOAD-BEARING, frozen), cut boundary ~0.0425. NOT ADDED:
+// shaft-shape check, shell check, box-width bar. No maxDuration in
+// vercel.json. No prompt change.
+
+// V3 (2026-11-14, Round 22): multi-provider fallback — OpenRouter ->
+// Gemini (revised chain, parent update 22:35 PKT 14 Nov). The live site
+// (R15) cannot generate at all: OpenRouter 429s on the shared key and
+// the gemma fallback shares that same key, so it 429s too. Gemini has
+// its OWN key from its OWN env var (GEMINI_API_KEY, set in Vercel), so
+// OpenRouter's limit never blocks it. A second fallback provider was
+// in the first R22 draft and is REMOVED here: its signup is blocked on
+// the provider's side, no key exists, and a dead provider referencing
+// a missing env var must not ship — this file contains no reference to
+// it at all. OpenRouter behaviour is UNCHANGED (nemotron primary,
+// gemma fallback, gemma still skipped on a 429, timeout still
+// non-retryable inside OpenRouter); the chain only adds the Gemini
+// step after OpenRouter's own leg ends. The Gemini model ID was
+// verified against Google's official docs 2026-11-14 (see the R22
+// build report): gemini-3.8-flash (Google models page: Stable version,
+// inputs Text/Image/Video/Audio/PDF, latest update September 2026).
+// NOT gemini-2.5-flash: Google's own models page marks it DEPRECATED
+// (no longer selectable in AI Studio for new users; all requests route
+// to gemini-3.5-flash-lite from 1 December 2026), so a fresh key
+// created now must not use it. Gemini is called on Google's
+// OpenAI-compatible endpoint (base URL with trailing slash, Bearer
+// auth, chat/completions, same request/response shape incl. image_url
+// — confirmed in Google's OpenAI compatibility doc, which also
+// confirms the Responses API is NOT supported, and we do not use it).
+// No native generateContent path ships: the compat endpoint is
+// documented to cover our exact request shape, so a second format
+// built blind (0 live calls allowed locally) would be untested code;
+// if the live test shows the compat endpoint rejecting our shape, the
+// native path is the R23 follow-up, in tryGemini only.
+// Same SYSTEM_PROMPT (byte-identical) and same Three.js output
+// contract on every provider; verifyBuild runs on every provider's
+// output. Fallback ONLY on retryable failures (429, 5xx, network,
+// timeout, bad model output); FAIL FAST on 400/401/402/403. Time
+// budget: 110s total from the first call (browser aborts at 120s); the
+// Gemini fallback only starts with at least 30s remaining, and gemma's
+// timeout is capped so Gemini keeps its 30s. All-fail errors name every
+// provider tried and what each returned (providersTried, only when 2+
+// providers were tried — single-provider failures keep the exact
+// pre-R22 body). No key value is ever written to any file, log, or
+// report; keys are read only from process.env. No deploy, no GitHub
+// push: the deploy gate needs OPENROUTER_API_KEY (old v3 value, in
+// place, rate-limited until 05:00 PKT 15 Nov) + GEMINI_API_KEY (set)
+// confirmed in Vercel.
 
 const PRIMARY_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
 const FALLBACK_MODEL = 'google/gemma-4-31b-it:free';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// V3 R22: the fallback provider. It reads its OWN key from its OWN
+// env var (GEMINI_API_KEY) — never the OpenRouter key.
+// Gemini model: gemini-3.8-flash, verified on Google's official models
+// page (Stable version, image input supported). Gemini uses Google's
+// OpenAI-compatible endpoint: base URL
+// https://generativelanguage.googleapis.com/v1beta/openai/ (trailing
+// slash matters) + chat/completions, Bearer auth, same chat-completions
+// request/response shape as OpenRouter — verified in Google's OpenAI
+// compatibility doc, including its image-understanding section.
+const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const MAX_TOKENS = 5000;
 // 2500 was too small: the primary model spends most of its completion
 // tokens on hidden reasoning (1821 of 2281 tokens on one good reply), so
@@ -827,6 +1341,19 @@ const FETCH_TIMEOUT_MS = 100000;
 // deployed plan / maxDuration allowing >=100s is not verifiable from the
 // repo — the deployed build evidently allowed 87.3s, but 100s+ must be
 // re-measured live after deploy (see the R2 build report).
+
+// V3 R22: time budget for the whole provider chain. The browser aborts
+// at 120s and one live OpenRouter attempt took 87.3s, so the chain is
+// capped at 110s total from the handler's first call; a fallback only
+// starts when at least MIN_FALLBACK_MS remain (a shorter window cannot
+// produce a meaningful attempt, so the original error is returned
+// instead of starting a doomed one). Per-provider caps: OpenRouter
+// keeps its 100s FETCH_TIMEOUT_MS (the primary path is unchanged);
+// Gemini is a fast inference endpoint and is capped at 60s,
+// further capped by the remaining budget.
+const TOTAL_BUDGET_MS = 110000;
+const MIN_FALLBACK_MS = 30000;
+const FALLBACK_PROVIDER_TIMEOUT_MS = 60000;
 
 const SYSTEM_PROMPT = [
   'You are a 3D model builder. Look at the hand-drawn sketch in the image and build that object as Three.js code from simple shapes.',
@@ -892,6 +1419,12 @@ function errorExtra(r) {
   const extra = {};
   if (r.rateLimitKind) extra.rateLimitKind = r.rateLimitKind;
   if (r.checkReason) extra.checkReason = r.checkReason;
+  // V3 R22: when the chain tried more than one provider, say which
+  // providers were tried and what each returned (status + rate-limit
+  // kind where known). Records carry provider/model/status only — no
+  // key material of any kind. Single-provider failures omit the field
+  // entirely, so their HTTP body is unchanged from before R22.
+  if (r.attempts && new Set(r.attempts.map((a) => a.provider)).size >= 2) extra.providersTried = r.attempts;
   return Object.keys(extra).length ? extra : undefined;
 }
 
@@ -1919,6 +2452,56 @@ function bodyCovarianceAxis(bodyObj, bodyDesc, THREE) {
     return [axis[0] / len, axis[1] / len, axis[2] / len];
   } catch (e) { return null; }
 }
+function bodySphereFitCentre(bodyObj, bodyDesc, THREE) {
+  // V3 R16 (J2 §9g — centroid-bias diagnosis, FIXED AT THE SOURCE):
+  // the least-squares sphere centre (Kasa / algebraic fit) of the
+  // body's WORLD vertices. For vertices that lie on a sphere it
+  // recovers the sphere centre exactly — a cut dome's fit centre is
+  // (0, 0, 0) to the printed precision at every tilt, and a clamp's
+  // is (0, 0, 0.004) (the disc vertices inside the sphere bias it
+  // 0.004 toward the front). It is rotation-invariant by
+  // construction (a sphere's centre does not depend on orientation),
+  // which is exactly what the centroid axis needs as its reference
+  // point. Returns [x, y, z] or null when unmeasurable (fewer than
+  // 4 vertices, singular system, non-finite result). The caller
+  // falls back to the bbox centre when this returns null.
+  try {
+    if (!bodyObj || !bodyDesc) return null;
+    const geo = bodyObj.geometry;
+    const vs = localVertices(geo);
+    if (!vs || vs.length < 4) return null;
+    const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    const b = [0, 0, 0, 0];
+    for (const v of vs) {
+      const w = meshWorldPoint(bodyObj, THREE, v[0], v[1], v[2]);
+      const row = [2 * w[0], 2 * w[1], 2 * w[2], 1];
+      const rhs = w[0] * w[0] + w[1] * w[1] + w[2] * w[2];
+      for (let i = 0; i < 4; i++) {
+        b[i] += row[i] * rhs;
+        for (let j = 0; j < 4; j++) A[i][j] += row[i] * row[j];
+      }
+    }
+    const M = A.map((row, i) => [row[0], row[1], row[2], row[3], b[i]]);
+    for (let c = 0; c < 4; c++) {
+      let p = c;
+      for (let r2 = c + 1; r2 < 4; r2++) if (Math.abs(M[r2][c]) > Math.abs(M[p][c])) p = r2;
+      const tmp = M[c]; M[c] = M[p]; M[p] = tmp;
+      if (Math.abs(M[c][c]) < 1e-12) return null;
+      for (let r2 = c + 1; r2 < 4; r2++) {
+        const f = M[r2][c] / M[c][c];
+        for (let k = c; k < 5; k++) M[r2][k] -= f * M[c][k];
+      }
+    }
+    const x = [0, 0, 0, 0];
+    for (let r2 = 3; r2 >= 0; r2--) {
+      let s2 = M[r2][4];
+      for (let k = r2 + 1; k < 4; k++) s2 -= M[r2][k] * x[k];
+      x[r2] = s2 / M[r2][r2];
+    }
+    if (!x.slice(0, 3).every(Number.isFinite)) return null;
+    return [x[0], x[1], x[2]];
+  } catch (e) { return null; }
+}
 function bodyCentroidAxis(bodyObj, bodyDesc, THREE) {
   // V3 R15 (J1 D-NEW1 + J2 H8): the body's own symmetry axis from the
   // direction from the bbox centre to the vertex centroid. Vertices
@@ -1932,6 +2515,83 @@ function bodyCentroidAxis(bodyObj, bodyDesc, THREE) {
   // misses it — the two estimators are complementary, not redundant).
   // Returns a unit vector, or null when |d| < 0.002 (symmetric body)
   // or unmeasurable.
+  // V3 R16 (J2 §9g — DIAGNOSIS, and the fix): the 1.0-1.7 deg cut
+  // error and the 5.2/10.8 deg clamp error were diagnosed AT THE
+  // SOURCE, and neither suspect in the R15 report was the cause:
+  // (1) the bbox centre is NOT the source — measured off the true
+  // symmetry axis by <=0.003 on every tilted cut/clamp fixture;
+  // (2) dedup rounding is NOT the source — dedup IMPROVES the axis
+  // (raw centroid: 6-9 deg off on cuts, 15-25 deg on clamps). The
+  // source is the CENTROID itself: the discrete lat/long vertex set
+  // is not perfectly symmetric about the cut axis, so the deduped
+  // centroid sits ~0.0005-0.001 off the axis — and because |d| (the
+  // centroid-to-reference distance) is small (~0.02), that tiny
+  // displacement becomes a ~1 deg angle error on cuts, while on
+  // clamps the bbox-centre reference lets the direction stay near
+  // world -z as the body tilts (error ~= tilt angle). The fix is
+  // the REFERENCE point: the Kasa sphere-fit centre
+  // (bodySphereFitCentre above) is rotation-invariant and exact for
+  // sphere-vertex bodies, so the centroid axis measured against it
+  // is EXACT (0.000 deg) on cut domes at 0/5/10/30 deg and a
+  // constant 1.093 deg on clamps at 0/5/10/15 deg (the 1.093 deg is
+  // the fit centre's own 0.004 bias from the disc vertices, fixed
+  // in the body frame — it tracks rotation, it does not grow with
+  // tilt). The covariance axis stays the second estimator (0.456
+  // deg constant on cuts, pole axis on near-complete spheres).
+  // Falls back to the bbox centre when the sphere fit is null.
+  // ONE CAVEAT, and why the bbox reference is KEPT as a third
+  // estimator (bodyCentroidAxisBbox): for SHALLOW clamps the Kasa
+  // reference kills the signal — the deduped centroid of a clamped
+  // sphere sits almost exactly at the sphere centre (|d| vs the Kasa
+  // centre is 0.0005 at clamp 0.03, 0.0009 at 0.04, 0.0013 at 0.05,
+  // 0.0018 at 0.06 — all under the 0.002 threshold — vs |d| 0.015 /
+  // 0.020 / 0.025 / 0.029 against the bbox centre, which shifts
+  // forward with the clamp). So the Kasa axis is degenerate (null)
+  // for clamps <= 0.06 while the bbox axis reads the disc (0.344 at
+  // 0.05). The layer therefore maxes over THREE axes — covariance,
+  // centroid-vs-Kasa (tracking), centroid-vs-bbox (signal size) —
+  // each covering cases the others miss, as in R15. V3 R17 adds a
+  // FOURTH (bodyCentroidAxisRaw, same direction, no |d| threshold)
+  // which carries tilted SHALLOW clamps (J2 H15).
+  return bodyCentroidAxisRef(bodyObj, bodyDesc, THREE, true);
+}
+function bodyCentroidAxisBbox(bodyObj, bodyDesc, THREE) {
+  // V3 R16: the R15 centroid axis unchanged — the deduped-centroid
+  // direction measured against the BBOX centre. Kept as the third
+  // estimator because it carries the signal for shallow clamps (see
+  // the caveat in bodyCentroidAxis): the bbox centre shifts forward
+  // with the clamp, so |d| is 0.015-0.037 and the axis reads the disc
+  // (0.344 at clamp 0.05, 0.350 at a 5 deg tilted clamp). It does not
+  // track rotation (error ~= tilt on clamps), which is why the Kasa
+  // reference is the second estimator — and why the unthresholded
+  // Kasa axis (bodyCentroidAxisRaw, R17) is the fourth: it tracks
+  // rotation AND keeps the signal at ~1 deg error where the
+  // thresholded Kasa axis is null.
+  return bodyCentroidAxisRef(bodyObj, bodyDesc, THREE, false);
+}
+function bodyCentroidAxisRaw(bodyObj, bodyDesc, THREE) {
+  // V3 R17 (J2 H15 — tilted SHALLOW clamps): the dedup-centroid
+  // direction measured against the Kasa sphere-fit centre WITHOUT
+  // the 0.002 |d| threshold. Measured: the unthresholded direction
+  // is accurate to ~1.04 deg on every shallow clamp (depths
+  // 0.04-0.076, tilts 0-20 deg) — the centroid displacement points
+  // along the disc normal even when |d| is 0.0009-0.0018, far under
+  // the threshold — while the bbox-centroid axis mis-tracks by ~the
+  // tilt angle (5.2/10.8 deg at 5/10 deg) and the covariance axis is
+  // degenerate ([0,1,0], 90 deg off) on clamps. The direction is
+  // only used through the rim/relief/cone/spike layers, and the
+  // eps-0.005 RELIEF along it is what carries the closure (0.348
+  // for clamp 0.05 at every tilt vs 0.307 for clamp 0.04): the
+  // eps-0.001 rim along it reads only 0.307-0.308 (the rim drops
+  // 0.344 -> 0.305 between 0.5 and 1 deg of direction error on a
+  // 0.05 disc), so the rim alone would NOT close H15. Floor 1e-9:
+  // null only for a truly symmetric body (compliant sphere |d| ~0).
+  // For cut domes and clamps >= 0.065 the direction is identical to
+  // bodyCentroidAxis (same computation, only the threshold differs),
+  // so no existing first-fire changes there.
+  return bodyCentroidAxisRef(bodyObj, bodyDesc, THREE, true, 1e-9);
+}
+function bodyCentroidAxisRef(bodyObj, bodyDesc, THREE, useKasa, minLen) {
   try {
     if (!bodyObj || !bodyDesc) return null;
     const geo = bodyObj.geometry;
@@ -1947,10 +2607,10 @@ function bodyCentroidAxis(bodyObj, bodyDesc, THREE) {
       sx += w[0]; sy += w[1]; sz += w[2]; m++;
     }
     if (!m) return null;
-    const B = bodyDesc.centre;
+    const B = useKasa ? (bodySphereFitCentre(bodyObj, bodyDesc, THREE) || bodyDesc.centre) : bodyDesc.centre;
     const dx = sx / m - B[0], dy = sy / m - B[1], dz = sz / m - B[2];
     const len = Math.hypot(dx, dy, dz);
-    if (!(len >= 0.002)) return null;
+    if (!(len >= (minLen === undefined ? 0.002 : minLen))) return null;
     return [dx / len, dy / len, dz / len];
   } catch (e) { return null; }
 }
@@ -2006,7 +2666,293 @@ function keyBowHoleDiameter(bowObj) {
     return best;
   } catch (e) { return null; }
 }
-// V3 R10 (J1 D8): the sharpest turn, in degrees, between consecutive
+function keyBowDepth(bowObj, THREE) {
+  // V3 R16 (J2 H10): the bow ring's DEPTH along its own (torus) axis,
+  // in world space. The hole check is a 2-D diameter in the bow's
+  // plane, so a torus squashed in Z (depth 0.12 -> 0.03) kept hole
+  // 0.52 / outer 0.76 and PASSED as a flat washer. The axis is the
+  // keyBowHoleDiameter argmax axis, carried into world space through
+  // the mesh matrixWorld rotation; the depth is the max-min
+  // projection of the WORLD vertices onto that axis, so mesh-level
+  // scale (bow.scale.z = 0.25) and baked geometry.scale both read
+  // correctly. P7b 0.12, tube-tilt 0.10, Q2 0.03, scale 0.5 -> 0.06,
+  // scale 0.67 -> 0.08. Bar 0.08 (see the call site). Returns
+  // { depth, axis, hole, outer } or null when unmeasurable.
+  try {
+    if (!bowObj) return null;
+    const hole = keyBowHoleDiameter(bowObj);
+    if (!hole) return null;
+    const ax = hole.ax;
+    const e = [0, 0, 0]; e[ax] = 1;
+    const m = bowObj.matrixWorld && bowObj.matrixWorld.elements;
+    let u;
+    if (m) {
+      const w = [m[0] * e[0] + m[4] * e[1] + m[8] * e[2], m[1] * e[0] + m[5] * e[1] + m[9] * e[2], m[2] * e[0] + m[6] * e[1] + m[10] * e[2]];
+      const wl = Math.hypot(w[0], w[1], w[2]);
+      if (!(wl > 0)) return null;
+      u = [w[0] / wl, w[1] / wl, w[2] / wl];
+    } else {
+      u = e;
+    }
+    const vs = localVertices(bowObj.geometry);
+    if (!vs || !vs.length) return null;
+    let mn = Infinity, mx = -Infinity;
+    for (const v of vs) {
+      const w = meshWorldPoint(bowObj, THREE, v[0], v[1], v[2]);
+      const s = w[0] * u[0] + w[1] * u[1] + w[2] * u[2];
+      if (s < mn) mn = s;
+      if (s > mx) mx = s;
+    }
+    if (!isFinite(mn) || !isFinite(mx)) return null;
+    return { depth: round3(mx - mn), axis: ax, hole: hole.hole, outer: hole.outer };
+  } catch (e) { return null; }
+}
+function bodyAxialGapRatio(bodyObj, bodyDesc, THREE, u, sign) {
+  // V3 R16 (J2 §9e — pole-centre spike): the axial-level gap ratio
+  // along unit axis u (sign +1 = the +u extreme is first, -1 = the
+  // -u extreme). Project every world vertex onto u, sort descending,
+  // cluster values within 0.002 into levels: g0 is the gap between
+  // the two most-extreme levels, g1 the gap between the next two.
+  // A smooth surface has g0 ~= g1 (a sphere's pole-to-first-ring
+  // gap is about a third of the next gap: ratio 0.33 on coarse
+  // spheres of 8/12/16/24 segments, 1.0 on a 48-segment sphere where
+  // the pole rings merge under the 0.002 cluster tolerance). A
+  // single vertex spiked 0.05 beyond the pole leaves an EMPTY axial
+  // band behind it: g0 0.052 against g1 0.005, ratio 10.4 (clean
+  // pole spike), 18.0 on a clamp, 7.1 for a spike at r = 0.26/0.27.
+  // The ratio — not the bare gap — is what makes the statistic
+  // tessellation-robust: a coarse 8-segment sphere's bare pole gap
+  // is 0.061, LARGER than a spike's 0.052, but its ratio is 0.353.
+  // The closest clean fixture is icosahedron detail-1 (ratio 3.606,
+  // g0 0.119 — sparse axial levels); the bar (see the call site)
+  // is g0 > 0.03 AND ratio > 5.0, between detail-1's 3.606 and the
+  // smallest spike's 7.143. The g0 floor is 0.03, not 0.02: the R16
+  // suite caught the 0.02 floor false-failing a wobbly-but-faithful
+  // body (radial noise 0.06: worst g0 0.022, ratio 5.5), while the
+  // smallest real spike's g0 is 0.05 — the floor sits in the measured
+  // gap 0.022-0.05. Cut domes read <= 2.333 (and g0 0.007
+  // on the -x axis, under the absolute floor). Returns { g0, g1,
+  // ratio } or null when fewer than 3 levels exist.
+  try {
+    if (!bodyObj || !bodyDesc || !u) return null;
+    const geo = bodyObj.geometry;
+    const vs = localVertices(geo);
+    if (!vs || !vs.length) return null;
+    const B = bodyDesc.centre;
+    const ss = new Array(vs.length);
+    for (let i = 0; i < vs.length; i++) {
+      const w = meshWorldPoint(bodyObj, THREE, vs[i][0], vs[i][1], vs[i][2]);
+      ss[i] = sign * ((w[0] - B[0]) * u[0] + (w[1] - B[1]) * u[1] + (w[2] - B[2]) * u[2]);
+    }
+    ss.sort((a, b) => b - a);
+    const levels = [];
+    for (const s of ss) {
+      if (!levels.length || s < levels[levels.length - 1] - 0.002) levels.push(s);
+    }
+    if (levels.length < 3) return null;
+    const g0 = round3(levels[0] - levels[1]);
+    const g1 = round3(levels[1] - levels[2]);
+    return { g0: g0, g1: g1, ratio: g1 > 0 ? round3(g0 / g1) : null };
+  } catch (e) { return null; }
+}
+function bodyConeSearchRim(bodyObj, bodyDesc, THREE, axes) {
+  // V3 R16 (J2 §9d — tilted-clamp plane-fit, shipped as its
+  // equivalent): a search over directions in a +-15 deg cone around
+  // each own-frame axis (both signs) for the flat face's normal,
+  // using the epsilon-max rim statistic (eps 0.001) at each sampled
+  // direction. A plane-fit of the back disc was MEASURED and
+  // REJECTED: a least-squares plane through the 0.05 back slab along
+  // the centroid axis is ill-conditioned (the slab holds only a
+  // narrow arc of the disc; eigenvalues ~[0, 0.02, 0.019]) — its
+  // fitted normal misses the true disc normal by 5.2 deg at 5 deg
+  // tilt, 11.2 deg at 10 deg, 16.0 deg at 15 deg, and the rim along
+  // it reads 0.04/0.066/0.018 toward the FRONT (R18, J1 D-NEW10: epsilon-max;
+  // the R16/R17 figure did not reproduce. R17, J1 D-NEW6: toward
+  // the BACK it reads 0.351/0.235/0.173 — still missing 10/15 deg).
+  // The cone search instead reads the rim
+  // directly: the rim degrades gracefully with axis error (10 deg
+  // tilted clamp: 0.425 at 0 deg error, 0.397 at 2 deg, 0.369 at 4
+  // deg, 0.355 at 5 deg, 0.341 at 6 deg, 0.314 at 8 deg), so a 3 deg
+  // grid inside a 15 deg cone always lands within ~3 deg of the
+  // normal and reads >= 0.387 on tilted clamps at 5/10/15 deg,
+  // while cut-0.04 reads at most 0.313 at any tilt (0/5/10/30 deg)
+  // and a compliant sphere 0.057. Bar (call site) cone.radius >
+  // 0.27 (R20, H18/H19 re-calibration at seg 48 — the R16 bar was
+  // 0.33; the rim/relief bars stay 0.33). Grid: theta 0,3,...,15 deg, phi
+  // count scaled so the arc spacing stays ~3 deg (deterministic).
+  // Returns { radius, dir, sign } for the best direction, or null
+  // when no axis is supplied or nothing is measurable. NOTE: on R16
+  // code the 10 deg tilted clamp already FAILS on layer (b) — the
+  // fixed centroid axis (1.093 deg error) reads rim 0.409 — so this
+  // layer is the second catcher for tilted clamps, not the first;
+  // it earns its keep for flat faces whose estimated axes are
+  // further off than the centroid fix covers.
+  try {
+    if (!bodyObj || !bodyDesc || !axes || !axes.length) return null;
+    let best = null;
+    for (const base of axes) {
+      if (!base) continue;
+      for (const sgn of [1, -1]) {
+        const a = [base[0] * sgn, base[1] * sgn, base[2] * sgn];
+        let t = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+        const e1 = [a[1] * t[2] - a[2] * t[1], a[2] * t[0] - a[0] * t[2], a[0] * t[1] - a[1] * t[0]];
+        const l1 = Math.hypot(e1[0], e1[1], e1[2]);
+        if (!(l1 > 0)) continue;
+        e1[0] /= l1; e1[1] /= l1; e1[2] /= l1;
+        const e2 = [a[1] * e1[2] - a[2] * e1[1], a[2] * e1[0] - a[0] * e1[2], a[0] * e1[1] - a[1] * e1[0]];
+        for (let th = 0; th <= 15; th += 3) {
+          const nPhi = th === 0 ? 1 : Math.max(6, Math.round(2 * Math.PI * Math.sin(th * Math.PI / 180) / (3 * Math.PI / 180)));
+          for (let k = 0; k < nPhi; k++) {
+            const ph = 2 * Math.PI * k / nPhi;
+            const tr = th * Math.PI / 180;
+            const u = [
+              a[0] * Math.cos(tr) + (e1[0] * Math.cos(ph) + e2[0] * Math.sin(ph)) * Math.sin(tr),
+              a[1] * Math.cos(tr) + (e1[1] * Math.cos(ph) + e2[1] * Math.sin(ph)) * Math.sin(tr),
+              a[2] * Math.cos(tr) + (e1[2] * Math.cos(ph) + e2[2] * Math.sin(ph)) * Math.sin(tr),
+            ];
+            for (const sg of [1, -1]) {
+              const ar = bodyAxisExtremeRadius(bodyObj, bodyDesc, THREE, u, sg, 0.001);
+              if (ar !== null && (best === null || ar.radius > best.radius)) {
+                best = { radius: ar.radius, dir: [round3(u[0]), round3(u[1]), round3(u[2])], sign: sg };
+              }
+            }
+          }
+        }
+      }
+    }
+    return best;
+  } catch (e) { return null; }
+}
+function bodyConeSecondRim(bodyObj, bodyDesc, THREE) {
+  // V3 R20 (J2 H18/H19 — cone angularity): the SECOND far-apart flat
+  // direction. A uniform 120-direction Fibonacci sphere (both signs)
+  // is scored with the epsilon-max rim statistic (eps 0.001, the same
+  // statistic the cone search uses); best is the largest radius and
+  // second is the largest radius among directions >30 deg from the
+  // best direction's AXIS LINE (either sign counts as the same line).
+  // A body with ONE flat face (a shallow cut dome, a clamp) reads a
+  // high best but a low second (cut 0.042: best 0.209, second 0.101;
+  // clamp 0.04 @10 deg: best 0.197, second 0.083); a hexagonal or
+  // dimpled body reads high on both (midfreq z-pole A 0.05: best
+  // 0.312, second 0.311; gauss-dimpled A 0.03: best 0.275, second
+  // 0.256; gauss-dim3 seed-777 A 0.03: second 0.239). Faithful smooth
+  // bodies read low on both (compliant best 0.073, second 0.071;
+  // hash 0.02 max second 0.175 over 5 seeds). Bar (call site) second
+  // > 0.18, conjuncted with cone.radius > 0.27 (see the R20 header
+  // block); the bar sits in the measured gap (0.111, 0.239) at seg-48
+  // calibration. Returns { best, second } (round3, like the rim
+  // layers) or null when nothing is measurable.
+  try {
+    if (!bodyObj || !bodyDesc) return null;
+    const N = 120, ga = Math.PI * (3 - Math.sqrt(5));
+    let best = null;
+    const vals = [];
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2, rr = Math.sqrt(Math.max(0, 1 - y * y)), th = ga * i;
+      const u = [Math.cos(th) * rr, y, Math.sin(th) * rr];
+      for (const sg of [1, -1]) {
+        const ar = bodyAxisExtremeRadius(bodyObj, bodyDesc, THREE, u, sg, 0.001);
+        if (!ar) continue;
+        vals.push({ u: u.slice(), radius: ar.radius });
+        if (!best || ar.radius > best.radius) best = { u: u.slice(), radius: ar.radius };
+      }
+    }
+    if (!best) return null;
+    let second = null;
+    const cos30 = Math.cos(30 * Math.PI / 180);
+    for (const v of vals) {
+      const dot = Math.abs(v.u[0] * best.u[0] + v.u[1] * best.u[1] + v.u[2] * best.u[2]);
+      if (dot < cos30 && (second === null || v.radius > second)) second = v.radius;
+    }
+    return { best: best.radius, second: second };
+  } catch (e) { return null; }
+}
+function bodySurfaceRoughness(bodyObj, bodyDesc, THREE) {
+  // V3 R17 (J2 H14 — lumpy wobbly body passes): a REAL smoothness
+  // statistic. For each deduped world vertex, the radius from the
+  // Kasa sphere-fit centre (bbox centre fallback) is compared with
+  // the MEAN radius of its spatial neighbours within D, where D =
+  // clamp(2.2 x median nearest-neighbour distance, 0.15, 0.6) — the
+  // adaptive D keeps the neighbour ring at 1-2 rings on any
+  // tessellation (48-seg: medNN 0.052, D 0.15; 8-seg: medNN 0.312,
+  // D 0.6). The statistic is the p90 of |radius - local mean
+  // radius| over vertices with >= 3 neighbours. It measures
+  // HIGH-FREQUENCY roughness, not amplitude: a vertex's neighbours
+  // sit ~0.05-0.15 away, so a smooth undulation (even A 0.06 at
+  // low frequency) barely changes radius between neighbours, while
+  // per-vertex hash noise jumps vertex-to-vertex. Measured (p90):
+  // clean/coarse/icosahedron bodies exactly 0.000; low-frequency
+  // undulation sin(2th)cos(3ph) A 0.06: 0.005; ellipsoid 1.05/1.06:
+  // 0.001; cut domes 0.04/0.05: 0.000; clamps 0.05/0.076: 0.000
+  // (p99 0.007-0.009, disc-edge vertices only); hash-noise wobbly
+  // 0.02 / 0.04 / 0.06: 0.015 / 0.029 / 0.042. Bar (call site)
+  // p90 > 0.017 on the UNROUNDED p90 (R19, H17 re-calibration — the
+  // R18 bar 0.021 left hash 0.025 (J2 ~8.8) and 0.028 (J2 ~8.6)
+  // passing; the R19 bar is set from fresh handmade-body fixtures
+  // across five noise families plus 5-seed distributions, not the
+  // hash ladder alone — see the R19 header block. The bar means what
+  // it says, effective threshold exactly 0.017). D-NEW15 (R20):
+  // CALIBRATION TESSELLATION IS SEG 48 — p90 rises as the mesh
+  // coarsens (hash 0.02 reads 0.0151/0.0153/0.0155/0.0174 at seg
+  // 48/32/24/16), so the bar's meaning is seg-48-conditional. Noise 0.02 reads
+  // 0.0151 and PASSES (margin 0.0019; all 5 hash seeds pass, min
+  // margin 0.0018); 0.023 reads 0.0174 and FAILS (over by 0.0004),
+  // 0.024 reads 0.0181, 0.025 reads 0.0187, 0.028 reads 0.0209 and
+  // 0.03 reads 0.0222, all FAIL. A single spiked vertex cannot move
+  // p90 (one vertex out of ~2258); the spike layer still owns
+  // spikes. Returns { p90, p90Raw, mean, used, n } (p90/mean
+  // round3 for display; p90Raw is the unrounded p90 the call site
+  // compares) or null when unmeasurable
+  // (fewer than 10 vertices, > 10000 vertices, or fewer than 10
+  // vertices with >= 3 neighbours — e.g. icosahedron detail-0,
+  // whose 12 vertices are 0.84 apart, outside the D cap 0.6).
+  try {
+    if (!bodyObj || !bodyDesc) return null;
+    const geo = bodyObj.geometry;
+    const vs = localVertices(geo);
+    if (!vs || vs.length < 10 || vs.length > 10000) return null;
+    const seen = new Set();
+    const ws = [];
+    for (const v of vs) {
+      const w = meshWorldPoint(bodyObj, THREE, v[0], v[1], v[2]);
+      const key = Math.round(w[0] * 10000) + ',' + Math.round(w[1] * 10000) + ',' + Math.round(w[2] * 10000);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ws.push(w);
+    }
+    const n = ws.length;
+    if (n < 10) return null;
+    const C = bodySphereFitCentre(bodyObj, bodyDesc, THREE) || bodyDesc.centre;
+    const r = new Array(n);
+    for (let i = 0; i < n; i++) r[i] = Math.hypot(ws[i][0] - C[0], ws[i][1] - C[1], ws[i][2] - C[2]);
+    const nn = new Array(n).fill(Infinity);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const d = Math.hypot(ws[i][0] - ws[j][0], ws[i][1] - ws[j][1], ws[i][2] - ws[j][2]);
+        if (d < nn[i]) nn[i] = d;
+        if (d < nn[j]) nn[j] = d;
+      }
+    }
+    const sNN = nn.slice().sort((a, b) => a - b);
+    const medNN = sNN[Math.floor(n / 2)];
+    if (!(medNN > 0) || !isFinite(medNN)) return null;
+    const D = Math.max(0.15, Math.min(0.6, 2.2 * medNN));
+    const devs = [];
+    for (let i = 0; i < n; i++) {
+      let s = 0, c = 0;
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        if (Math.hypot(ws[i][0] - ws[j][0], ws[i][1] - ws[j][1], ws[i][2] - ws[j][2]) <= D) { s += r[j]; c++; }
+      }
+      if (c >= 3) devs.push(Math.abs(r[i] - s / c));
+    }
+    if (devs.length < 10) return null;
+    devs.sort((a, b) => a - b);
+    const mean = devs.reduce((a, b) => a + b, 0) / devs.length;
+    const p90 = devs[Math.min(devs.length - 1, Math.floor(0.9 * devs.length))];
+    return { p90: round3(p90), p90Raw: p90, mean: round3(mean), used: devs.length, n: n };
+  } catch (e) { return null; }
+}
 // segments of a mouth's centreline/bottom-edge polyline ([x, y]
 // points in order). A smooth smile turns gradually (compliant tube
 // and crescent: 6.7°); a chevron/V turns ~61° at its centre kink.
@@ -3538,7 +4484,22 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       // clamped sphere reads 0.423 while a true sphere reads 0.065.
       // (d) OWN-FRAME RELIEF — the flat radius along both own-frame
       // axes. The rim fires first for every known cut fixture; the
-      // relief is the second layer that catches the clamp. Same scope
+      // relief is the second layer that catches the clamp. (e) SPIKE
+      // GAP (R16, J2 §9e, moved before the cone in R20 — a single
+      // spiked vertex explains the cone reading, so the spike
+      // diagnosis must win) — the axial-level gap ratio along the
+      // six world axes and both own-frame axes; catches a single
+      // vertex spiked beyond the pole. (f) CONE SEARCH + SECOND
+      // DIRECTION (R16 cone, R20 H18/H19 angularity) — the
+      // epsilon-max rim over directions in a +-15 deg cone around
+      // each own-frame axis, conjuncted with a second far-apart flat
+      // direction; catches a faceted body whose estimated axes are
+      // further off than the centroid fix covers. (R16: the centroid axis now uses the Kasa sphere-fit
+      // centre as its reference — see bodyCentroidAxis — so a
+      // 10 deg tilted clamp already FAILS on layer (b) with rim
+      // 0.409; the cone is the second catcher for it. The R15
+      // numbers in (b) above are the R15 readings, kept as the
+      // dated record; R16 readings are in the R16 header.) Same scope
       // gate as the signals above (face, or a round-claiming
       // non-face body), so the kite/phone/cup/key stay out of scope.
       // Runs AFTER the aspect checks, so a deep cut still fails on
@@ -3547,9 +4508,13 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       // at the band edge, rim 0.427 fails here). Translation-
       // invariant by construction (bbox centre + relative bands);
       // rotation-invariant for cut domes at 0/5/10/30 deg Y-tilt and
-      // 90 deg Y-rotation (R15 suite) — NOT for tilted clamped
-      // spheres (a 10 deg tilted clamp passes every layer; disclosed
-      // in the header, not hidden).
+      // 90 deg Y-rotation (R15 suite) — and, from R16, for tilted
+      // clamped spheres too: the fixed centroid axis reads rim 0.409
+      // on a 10 deg tilted clamp (layer (b) fires), with the cone
+      // search as the second catcher (0.390). The R15 limitation
+      // (10 deg tilted clamp passes every layer) is CLOSED in R16;
+      // the sentence above is kept only as the dated R15 record in
+      // the R15 header paragraph.
       {
         const rimFaces = [[2, -1, 'back', 'backmost'], [2, 1, 'front', 'frontmost'], [0, -1, 'left', 'leftmost'], [0, 1, 'right', 'rightmost'], [1, -1, 'bottom', 'bottommost'], [1, 1, 'top', 'topmost']];
         for (const faceSpec of rimFaces) {
@@ -3558,15 +4523,16 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
             return fail('body ' + faceSpec[2] + ' is flat, not round: the body\'s ' + faceSpec[3] + ' surface sits in a ring ' + fr.rim + ' of its half-width off-centre (bar 0.33) — a round body peaks at its centre (0.000) — the sketch body is a full sphere, round in every view, never sliced flat at the ' + faceSpec[2], meshes, matches);
           }
         }
-        const ownAxes = [bodyCovarianceAxis(bodyObj, largest.m, THREE), bodyCentroidAxis(bodyObj, largest.m, THREE)];
-        for (const u of ownAxes) {
+        const ownAxes = [{ name: 'covariance', u: bodyCovarianceAxis(bodyObj, largest.m, THREE) }, { name: 'centroid', u: bodyCentroidAxis(bodyObj, largest.m, THREE) }, { name: 'centroid-bbox', u: bodyCentroidAxisBbox(bodyObj, largest.m, THREE) }, { name: 'centroid-raw', u: bodyCentroidAxisRaw(bodyObj, largest.m, THREE) }];
+        for (const ax of ownAxes) {
+          const u = ax.u;
           if (!u) continue;
           for (const sign of [-1, 1]) {
             const ar = bodyAxisExtremeRadius(bodyObj, largest.m, THREE, u, sign, 0.001);
             if (ar !== null && ar.radius > 0.33) {
               const w = [u[0] * sign, u[1] * sign, u[2] * sign];
               const wf = worldFaceOf(w);
-              return fail('body ' + wf.face + ' is flat, not round: in the body\'s own frame the ' + wf.face + 'most surface sits in a ring ' + ar.radius + ' of its half-width off-centre (bar 0.33) — the flat face is tilted ' + wf.tilt + ' deg from the ' + wf.face + ' — a round body peaks at its centre (0.000) — the sketch body is a full sphere, round in every view, never sliced flat at the ' + wf.face, meshes, matches);
+              return fail('body ' + wf.face + ' is flat, not round: in the body\'s own frame the ' + wf.face + 'most surface sits in a ring ' + ar.radius + ' of its half-width off-centre (bar 0.33) — the body\'s own ' + ax.name + ' axis sits ' + wf.tilt + ' deg from the ' + wf.face + ' — a round body peaks at its centre (0.000) — the sketch body is a full sphere, round in every view, never sliced flat at the ' + wf.face, meshes, matches);
             }
           }
         }
@@ -3576,15 +4542,113 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
             return fail('body ' + faceSpec[2] + ' has no relief: the ' + faceSpec[2] + ' surface stays flat out to ' + fl.flat + ' of its half-width (bar 0.33) — a round body curves away at once (0.065) — the sketch body is a full sphere, round in every view, never flattened at the ' + faceSpec[2], meshes, matches);
           }
         }
-        for (const u of ownAxes) {
+        for (const ax of ownAxes) {
+          const u = ax.u;
           if (!u) continue;
           for (const sign of [-1, 1]) {
             const ar = bodyAxisExtremeRadius(bodyObj, largest.m, THREE, u, sign, 0.005);
             if (ar !== null && ar.radius > 0.33) {
               const w = [u[0] * sign, u[1] * sign, u[2] * sign];
               const wf = worldFaceOf(w);
-              return fail('body ' + wf.face + ' has no relief: in the body\'s own frame the ' + wf.face + ' surface stays flat out to ' + ar.radius + ' of its half-width (bar 0.33) — the flat face is tilted ' + wf.tilt + ' deg from the ' + wf.face + ' — a round body curves away at once (0.065) — the sketch body is a full sphere, round in every view, never flattened at the ' + wf.face, meshes, matches);
+              return fail('body ' + wf.face + ' has no relief: in the body\'s own frame the ' + wf.face + ' surface stays flat out to ' + ar.radius + ' of its half-width (bar 0.33) — the body\'s own ' + ax.name + ' axis sits ' + wf.tilt + ' deg from the ' + wf.face + ' — a round body curves away at once (0.065) — the sketch body is a full sphere, round in every view, never flattened at the ' + wf.face, meshes, matches);
             }
+          }
+        }
+        // (e) SPIKE GAP (R16, J2 §9e) — a single vertex spiked
+        // beyond the pole leaves an empty axial band behind it.
+        // R20: moved BEFORE the cone layer — a single spiked vertex
+        // explains the cone reading (clean pole spike reads cone
+        // 0.279), so the spike diagnosis must win; measured, no
+        // cone-failing fixture reads this check (max g0 0.010 vs the
+        // 0.03 floor), so the move changes no other first-fire. The
+        // gap ratio (gap to the next level over the next gap) is
+        // measured along the six world axes and all four own-frame axes
+        // (R17: covariance, centroid, centroid-bbox, centroid-raw);
+        // it fires when the extreme gap is over 0.03 AND over 5.0x
+        // the next gap (clean spheres <= 3.606, smallest spike 7.143).
+        // The 0.03 floor (not 0.02) is the R16-suite calibration: a
+        // wobbly-but-faithful body at radial noise 0.06 reads worst
+        // g0 0.022 at ratio 5.5, while the smallest real spike's g0
+        // is 0.05 — the floor sits in the measured gap 0.022-0.05.
+        {
+          const spikeDirs = [[0, 0, -1], [0, 0, 1], [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0]];
+          for (const ax of ownAxes) {
+            if (ax.u) spikeDirs.push(ax.u, [-ax.u[0], -ax.u[1], -ax.u[2]]);
+          }
+          for (const d of spikeDirs) {
+            const g = bodyAxialGapRatio(bodyObj, largest.m, THREE, d, 1);
+            if (g !== null && g.g0 > 0.03 && g.ratio !== null && g.ratio > 5.0) {
+              const wf = worldFaceOf(d);
+              return fail('body ' + wf.face + ' has a spike: one vertex sticks out ' + g.g0 + ' beyond the next surface level — ' + g.ratio + 'x the spacing between the next levels (bar 5.0) — a round body curves smoothly away from its peak, never a single vertex poking out — the sketch body is a full sphere, round in every view', meshes, matches);
+            }
+          }
+        }
+        // (f) CONE SEARCH + SECOND DIRECTION (R16 cone, R20 H18/H19
+        // angularity) — the epsilon-max rim over directions in a
+        // +-15 deg cone around each own-frame axis, PLUS the second
+        // far-apart flat direction (bodyConeSecondRim: best rim over
+        // a uniform 120-direction sphere, and the best among
+        // directions >30 deg from the best direction's axis line).
+        // The cone bar alone cannot ship: a pinned passing cut dome
+        // (cut 0.042) reads cone 0.32 — HIGHER than both holes
+        // (midfreq z 0.05 0.311, gauss-dim 0.03 0.296) — so any
+        // threshold catching the holes also fails the cut, moving the
+        // pinned cut boundary 0.0425. The conjunction asks for TWO
+        // far-apart flat directions: one flat face alone can be a
+        // shallow cut or clamp (cut 0.042 second 0.101, clamp 0.04
+        // @10 deg second 0.083), while a hexagonal/faceted body has
+        // several (midfreq z 0.05 second 0.311, gauss-dim 0.03 second
+        // 0.256). Bars (seg-48 calibration): cone > 0.27 AND second
+        // > 0.18. The second bar sits in the measured gap (0.111,
+        // 0.239): 0.069 above the cut/clamp max, 0.059 below the
+        // gauss-dim3 seed-777 min 0.239. Runs after layers (a)-(d)
+        // and the spike layer, so a spiked body keeps its spike
+        // reason first and a cut/clamped body keeps its rim/relief
+        // reason first. The second-direction search runs ONLY when
+        // the cone bar is already exceeded, so compliant bodies pay
+        // nothing extra.
+        {
+          const cone = bodyConeSearchRim(bodyObj, largest.m, THREE, ownAxes.map((ax) => ax.u));
+          if (cone !== null && cone.radius > 0.27) {
+            const second = bodyConeSecondRim(bodyObj, largest.m, THREE);
+            if (second !== null && second.second !== null && second.second > 0.18) {
+              const w = [cone.dir[0] * cone.sign, cone.dir[1] * cone.sign, cone.dir[2] * cone.sign];
+              const wf = worldFaceOf(w);
+              return fail('body ' + wf.face + ' is flat, not round: a search over directions near the body\'s own axes finds the ' + wf.face + 'most surface sitting in a ring ' + cone.radius + ' of its half-width off-centre (bar 0.27) — and a second flat direction far from the first reads ' + second.second + ' (bar 0.18) — one flat face alone can be a shallow cut, but two far-apart flat directions mean the body is faceted, not round — the flattest direction found sits ' + wf.tilt + ' deg from the ' + wf.face + ' — a round body peaks at its centre (0.000) — the sketch body is a full sphere, round in every view, never sliced flat at the ' + wf.face, meshes, matches);
+            }
+          }
+        }
+        // (g) SURFACE SMOOTHNESS (R17, J2 H14) — the p90 radial
+        // deviation from the local-neighbour mean radius (see
+        // bodySurfaceRoughness). Runs AFTER the spike and cone
+        // layers, so a spiked body keeps its spike reason first and
+        // a cut/clamped body keeps its rim/relief reason first; only
+        // a body that passes every flatness layer can fail here, and
+        // its only offence is lumpiness. Bar p90 > 0.017 on the UNROUNDED p90
+        // (R19, H17 re-calibration — see the R19 header block):
+        // hash-noise wobbly 0.02 reads 0.0151 (PASS, margin 0.0019),
+        // 0.023 reads 0.0174 (FAIL, over by 0.0004 — the new
+        // knife-edge pair is 0.022 PASS / 0.023 FAIL), 0.024 reads
+        // 0.0181, 0.025 reads 0.0187, 0.028 reads 0.0209 and 0.03
+        // reads 0.0222 (FAIL — H17 CLOSED); 0.035 reads 0.0257 and
+        // 0.04 reads 0.0292 and 0.06 reads 0.0424 (FAIL);
+        // clean/coarse/icosahedron bodies read 0.000,
+        // low-frequency undulation A 0.06 reads 0.005, cut domes
+        // and clamps read 0.000. The spike g0 floor STAYS at 0.03 —
+        // the floor is the wrong instrument for lumpiness, and this
+        // layer is the right one.
+        // D-NEW13 (R19, J1): when the ROUNDED p90 equals the bar,
+        // the reason prints the RAW p90 to 4 decimals — otherwise a
+        // 0.0170-class failure would read "jumps 0.017 ... bar
+        // 0.017" and the verdict would be unexplained on its face
+        // (the R18 0.0285 quirk). Ordinary fails print the rounded
+        // value as before (e.g. 0.03 prints 0.022).
+        {
+          const rough = bodySurfaceRoughness(bodyObj, largest.m, THREE);
+          const p90c = (rough !== null && rough.p90Raw !== undefined) ? rough.p90Raw : (rough !== null ? rough.p90 : null);
+          if (rough !== null && p90c > 0.017) {
+            const p90txt = (rough.p90 === 0.017) ? p90c.toFixed(4) : String(rough.p90);
+            return fail('body surface is lumpy, not smooth: the body\'s surface radius jumps ' + p90txt + ' away from its neighbours\' mean radius (p90 over the body\'s vertices, bar 0.017) — a round body curves smoothly, never a crumpled-paper surface — the sketch body is a full sphere, smooth in every view', meshes, matches);
           }
         }
       }
@@ -3971,19 +5035,45 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
   if (isFace) {
     const bodyFamily = largest.m.family;
     let bodyCount = 0;
+    let countedByNew = false;
     for (let i = 0; i < meshes.length; i++) {
       const m = meshes[i];
       const maxD = round3(Math.max(m.size[0], m.size[1], m.size[2]));
       const minD = round3(Math.min(m.size[0], m.size[1], m.size[2]));
-      if (!((maxD > 0.45 && minD > 0.10) || maxD > 0.70)) continue;
-      if (bodyFamily && bodyFamily !== 'unknown' && m.family !== bodyFamily) continue;
       const mm = matches.find((x) => x.mesh === i);
+      // V3 R16 (J2 H11): an UNMATCHED body-coloured mesh also counts
+      // when it is bigger than 0.25 in its largest direction and
+      // thicker than 0.10 — a second sphere r 0.22 (max-dim 0.44)
+      // attached as a chin passed under the old 0.45 floor, and
+      // nothing legitimate is an unmatched 0.25+ body-coloured
+      // solid: the tallest in-band eye is 0.21 wide, the R9 flat
+      // white/light-grey triangles are exempt by the min-dim
+      // conjunct (min 0 — they are zero-thickness ShapeGeometry),
+      // and PARTS-listed features are exempt because the new floor
+      // applies only to UNMATCHED meshes. Q4's r 0.10 chin (max-dim
+      // 0.20) still passes, by design (borderline, model 9.2).
+      // V3 R17 (J2 H13): the floor moves 0.30 -> 0.25 — a second
+      // body just under the old floor passed (chin r 0.145 / maxD
+      // 0.29, side lump r 0.14 / 0.28, chin box 0.29, all 8.3-8.7).
+      // New boundary: maxD 0.25 PASSES / 0.26 FAILS; Q4 (0.20)
+      // still passes by design (margin 0.05). The protrusion
+      // alternative was MEASURED and REJECTED (Q4's chin protrudes
+      // 0.150 below the body bbox, MORE than the H13 chin's 0.125
+      // and EQUAL to the chin box's 0.150 — no threshold separates
+      // them), and the centre-outside-bbox alternative does not
+      // catch the chin cases either (chin centre y -0.78 sits
+      // inside the body bbox -0.8..0.8).
+      const countsByOld = (maxD > 0.45 && minD > 0.10) || maxD > 0.70;
+      const countsByNew = !mm && maxD > 0.25 && minD > 0.10;
+      if (!countsByOld && !countsByNew) continue;
+      if (bodyFamily && bodyFamily !== 'unknown' && m.family !== bodyFamily) continue;
       if (mm && /mouth|smile|lip/i.test(mm.part.toLowerCase())) continue;
       if (mm && /eye(?!brow)/i.test(mm.part.toLowerCase())) continue;
+      if (countsByNew && !countsByOld) countedByNew = true;
       bodyCount++;
     }
     if (bodyCount !== 1) {
-      return fail('face has ' + bodyCount + ' bodies, but the sketch has exactly one body — a second solid body-coloured shape sits behind or beside the first (only one body mesh may be bigger than 0.45 in every direction and thicker than 0.10, or bigger than 0.70 in any direction)', meshes, matches);
+      return fail('face has ' + bodyCount + ' bodies, but the sketch has exactly one body — a second solid body-coloured shape sits behind or beside the first (only one body mesh may be bigger than 0.45 in every direction and thicker than 0.10, or bigger than 0.70 in any direction' + (countedByNew ? '; an unmatched body-coloured mesh bigger than 0.25 also counts' : '') + ')', meshes, matches);
     }
   }
   // V3 R3 key-shape check: the R1 key (flat tip, two separate teeth,
@@ -4698,6 +5788,22 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
         return fail('key bow has no real hole: the bow ring is solid (hole diameter ' + bowHole.hole + ', sketch: about 0.52, bar 0.35) — the sketch bow is a ring with a real hole through it, never a solid disc', meshes, matches);
       }
     }
+    // V3 R16 (J2 H10): BOW DEPTH — the hole check is a 2-D diameter
+    // in the bow's plane, so a torus squashed in Z (depth 0.12 ->
+    // 0.03) kept hole 0.52 / outer 0.76 and passed as a flat washer.
+    // The depth is measured along the bow's own axis in world space
+    // (keyBowDepth): P7b 0.12, tube-tilt 0.10, Q2 0.03. Bar depth >=
+    // 0.08 — sketch-anchored loosely (the sketch bow is a drawn
+    // ring, its tube ~0.12 in P7b units; a bow flattened to 0.06
+    // still fails, 0.08 passes at the bar). Runs after the hole
+    // check, so a solid bow still fails on the hole first.
+    {
+      const bowObjDepth = meshObjs[meshes.indexOf(bowM)];
+      const bowDepth = keyBowDepth(bowObjDepth, THREE);
+      if (bowDepth !== null && bowDepth.depth < 0.08) {
+        return fail('key bow is too thin: the bow ring is only ' + bowDepth.depth + ' deep (sketch: about 0.12, bar 0.08) — the sketch bow is a ring with real thickness, never a flat washer', meshes, matches);
+      }
+    }
     // V3 R10 (J1 D6): BOW POSITION — the bow ring sits at the TOP
     // of the shaft: its centre must sit no more than 0.05 below
     // the shaft top. P7b's centre is 0.12 above the shaft top, the
@@ -4736,6 +5842,56 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       }
       if (isFinite(closestBow) && round3(closestBow) > 0.02) {
         return fail('key bow is detached: the bow floats ' + round3(closestBow) + ' from the shaft surface — the bow ring must touch the top of the shaft, never float beside it', meshes, matches);
+      }
+    }
+    // V3 R16 (J2 H12): TOOTH ORIENTATION — measured as each tooth's
+    // height in the SHAFT's frame. The prescribed "width > height
+    // per tooth" formulation was MEASURED and does NOT separate the
+    // fixtures: P7b's teeth read h/w 0.46 / 0.80 while Q5b's vertical
+    // slabs read 0.70 / 0.65 — P7b's lower tooth is proportionally
+    // TALLER than Q5b's upper slab, and the visible jut (0.315 vs
+    // 0.26 tall) is wider than tall on both. What separates them is
+    // absolute tooth height: P7b 0.12 / 0.16, tube-tilt 0.06, Q5b
+    // 0.26 / 0.20. Bar: each tooth mesh at most 0.18 tall in the
+    // shaft frame (between the blessed max 0.16 and the slab min
+    // 0.20; margins 0.02/0.02, deterministic exact-vertex geometry).
+    // A tooth this tall is a vertical slab, not a thin horizontal
+    // step jutting left. Exempt: ExtrudeGeometry meshes — the R13
+    // one-mesh extruded bitting IS the whole stepped profile, and
+    // its height is the bitting span (0.24), governed by the span
+    // check instead. Under the stub (no vertices) the bbox corners
+    // stand in for vertices, as in the per-tooth loop above.
+    // PLACEMENT (deliberate): this runs AFTER the bow-position and
+    // bow-attachment checks, so E-VB — whose single tooth is 0.30
+    // tall but whose bow sits 0.08 below the shaft top — still
+    // fails FIRST on the bow-position reason the R11–R15 suites
+    // pin for it, not on this check.
+    for (const t of teethSet) {
+      const tType = t.type || 'unknown';
+      if (tType === 'ExtrudeGeometry') continue;
+      const ti = meshes.indexOf(t);
+      const tObj = meshObjs[ti];
+      const tPos = tObj && tObj.geometry && tObj.geometry.attributes && tObj.geometry.attributes.position;
+      let tMinY = Infinity, tMaxY = -Infinity;
+      const takeY = (ly) => { if (ly < tMinY) tMinY = ly; if (ly > tMaxY) tMaxY = ly; };
+      if (tPos && tPos.count) {
+        for (let vi = 0; vi < tPos.count; vi++) {
+          const w = meshWorldPoint(tObj, THREE, tPos.getX(vi), tPos.getY(vi), tPos.getZ(vi));
+          const l = worldToLocal(shaftObjExt, THREE, w[0], w[1], w[2]);
+          takeY(l[1]);
+        }
+      } else {
+        for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+          const l = worldToLocal(shaftObjExt, THREE,
+            t.centre[0] + sx * t.size[0] / 2, t.centre[1] + sy * t.size[1] / 2, t.centre[2] + sz * t.size[2] / 2);
+          takeY(l[1]);
+        }
+      }
+      if (isFinite(tMinY) && isFinite(tMaxY)) {
+        const toothH = round3(tMaxY - tMinY);
+        if (toothH > 0.18) {
+          return fail('key tooth is too tall: a tooth is ' + toothH + ' tall in the shaft\'s frame, but the sketch teeth are thin horizontal steps (about 0.12 to 0.16 tall) — a tooth this tall is a vertical slab, not a step jutting left', meshes, matches);
+        }
       }
     }
     // V3 R12 (J2 H3): EXTRA-PART ACCOUNTING (the check itself runs
@@ -4844,20 +6000,30 @@ function verifyBuild(code, parts, objectName) {
   return verifyBuildWithThree(code, parts, objectName, loadThree());
 }
 
-async function callOpenRouter(model, imageDataUrl) {
+// V3 R22: one OpenAI-compatible chat-completions call, shared by both
+// providers. Same messages (SYSTEM_PROMPT byte-identical + the
+// same image payload) and the same response shape on every provider, so
+// the parse + verifyBuild path below is provider-independent. Only the
+// endpoint, the key (each provider reads its OWN env var — never a
+// shared key) and the model differ. `reasoning` is an OpenRouter-only
+// field: the primary model burns completion tokens on hidden reasoning
+// and truncates without the cap; Gemini gets no such field (its compat
+// endpoint may reject unknown fields, and the model does not need it). No key value is ever logged — and this function logs nothing at
+// all (not the URL, not the model, not the headers).
+async function callChatCompletions(cfg, imageDataUrl, timeoutMs) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(OPENROUTER_URL, {
+    const headers = {
+      Authorization: 'Bearer ' + cfg.apiKey,
+      'Content-Type': 'application/json',
+    };
+    if (cfg.extraHeaders) Object.assign(headers, cfg.extraHeaders);
+    const res = await fetch(cfg.url, {
       method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://sketch-to-3d.vercel.app',
-        'X-Title': 'Sketch to 3D',
-      },
+      headers,
       body: JSON.stringify({
-        model,
+        model: cfg.model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
@@ -4876,7 +6042,7 @@ async function callOpenRouter(model, imageDataUrl) {
         // code mid-function and the reply fails to parse. 2000 reasoning
         // tokens is above what the good replies used (1821 for the smiley).
         // Providers that ignore this field are unaffected.
-        reasoning: { max_tokens: 2000 },
+        ...(cfg.includeReasoning ? { reasoning: { max_tokens: 2000 } } : {}),
       }),
       signal: controller.signal,
     });
@@ -4886,51 +6052,215 @@ async function callOpenRouter(model, imageDataUrl) {
   }
 }
 
+// OpenRouter call, kept as a named wrapper so tryModel reads exactly as
+// before: same URL, same key env var, same Referer/Title headers, same
+// reasoning cap. `timeoutMs` defaults to FETCH_TIMEOUT_MS (100s).
+async function callOpenRouter(model, imageDataUrl, timeoutMs) {
+  return callChatCompletions({
+    url: OPENROUTER_URL,
+    apiKey: process.env.OPENROUTER_API_KEY,
+    model,
+    includeReasoning: true,
+    extraHeaders: {
+      'HTTP-Referer': 'https://sketch-to-3d.vercel.app',
+      'X-Title': 'Sketch to 3D',
+    },
+  }, imageDataUrl, timeoutMs || FETCH_TIMEOUT_MS);
+}
+
 // Returns { ok, code, objectName, model } or { ok:false, status, message }.
 // A reply that fails the server-side self-check is retryable, so the caller
 // tries the fallback model; if that fails the check too, the 502 badCode
 // plain-words error is returned — never a feature-missing model as success.
-async function tryModel(model, imageDataUrl) {
+// V3 R22: every failure also carries `crossRetryable` — whether the
+// PROVIDER CHAIN may try the next provider (Gemini, on its own key).
+// `retryable` keeps its old meaning: whether the NEXT MODEL
+// on the SAME provider may be tried. They differ on purpose:
+// - 429: retryable false (gemma shares the OpenRouter key's limit —
+//   unchanged since V3) but crossRetryable true (Gemini has its own
+//   limit, so a 429 here is exactly what the chain is for).
+// - timeout: retryable false (old R2 rule — a second 100s wait would
+//   blow the browser's 120s abort) but crossRetryable true — the chain
+//   only acts on it when the time budget still allows a real attempt.
+// - 400/401/402/403: both false — a bad request or a bad key fails fast.
+//   (400/403 used to fall through to the generic 502 retryable path;
+//   that wasted the fallback call on a request that would fail the
+//   same way there.)
+async function tryModel(model, imageDataUrl, timeoutMs) {
   let res;
   try {
-    res = await callOpenRouter(model, imageDataUrl);
+    res = await callOpenRouter(model, imageDataUrl, timeoutMs);
   } catch (err) {
     // V3 R2: a timeout is NON-retryable. The fallback would cost a second
     // 100s wait (~200s total) against the browser's 120s abort, so the
     // timeout error is returned immediately after the primary attempt.
-    if (err && err.name === 'AbortError') return { ok: false, status: 504, message: PLAIN_ERRORS.timeout, retryable: false };
-    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true };
+    if (err && err.name === 'AbortError') return { ok: false, status: 504, message: PLAIN_ERRORS.timeout, retryable: false, crossRetryable: true };
+    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true };
   }
-  if (res.status === 401) return { ok: false, status: 401, message: PLAIN_ERRORS.auth, retryable: false };
-  if (res.status === 402) return { ok: false, status: 402, message: PLAIN_ERRORS.billing, retryable: false };
+  if (res.status === 400) return { ok: false, status: 400, message: PLAIN_ERRORS.badRequest, retryable: false, crossRetryable: false };
+  if (res.status === 401) return { ok: false, status: 401, message: PLAIN_ERRORS.auth, retryable: false, crossRetryable: false };
+  if (res.status === 402) return { ok: false, status: 402, message: PLAIN_ERRORS.billing, retryable: false, crossRetryable: false };
+  if (res.status === 403) return { ok: false, status: 403, message: PLAIN_ERRORS.auth, retryable: false, crossRetryable: false };
   if (res.status === 429) {
     // V3: a 429 from the primary must NOT trigger the fallback call —
     // both models share the same key's rate limit, so the fallback would
     // 429 too. Return the rate-limit message directly (retryable: false
     // here means "do not try the fallback model"; the user may retry
-    // after a minute for the 'minute' kind, per the message).
+    // after a minute for the 'minute' kind, per the message). V3 R22:
+    // the CHAIN may still try Gemini (crossRetryable: true) —
+    // that is the point of the fallback provider.
     const kind = await parseRateLimitKind(res);
     return {
       ok: false, status: 429,
       message: kind === 'day' ? PLAIN_ERRORS.rateLimitDay : PLAIN_ERRORS.rateLimitMinute,
-      retryable: false, rateLimitKind: kind,
+      retryable: false, crossRetryable: true, rateLimitKind: kind,
     };
   }
-  if (res.status === 404) return { ok: false, status: 404, message: PLAIN_ERRORS.modelGone, retryable: true };
-  if (!res.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true };
+  if (res.status === 404) return { ok: false, status: 404, message: PLAIN_ERRORS.modelGone, retryable: true, crossRetryable: true };
+  if (!res.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true };
   let data;
   try {
     data = await res.json();
   } catch (err) {
-    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true };
+    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true };
   }
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   const found = extractResult(text);
-  if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, failStage: 'extract' };
-  if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, failStage: 'safety' };
+  if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'extract' };
+  if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'safety' };
   const check = verifyBuild(found.code, found.parts, found.objectName);
-  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, failStage: 'check', checkReason: check.reason };
+  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason };
   return { ok: true, code: found.code, objectName: found.objectName, model, parts: found.parts };
+}
+
+function chainRemainingMs(start) {
+  return TOTAL_BUDGET_MS - (Date.now() - start);
+}
+
+function providerConfigured(name) {
+  if (name === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
+  if (name === 'gemini') return !!process.env.GEMINI_API_KEY;
+  return false;
+}
+
+// V3 R22: one attempt against Gemini. Same request shape and
+// same response handling as tryModel (parse -> safety -> verifyBuild),
+// so the fallback model must meet the same contract to count as a
+// success. Differences from the OpenRouter path, all deliberate:
+// (a) no `reasoning` field (OpenRouter-only); (b) 429 IS marked
+// retryable here — there is no second model on the same provider and
+// no provider after Gemini, so the flags only record that the failure
+// was transient (a bad key/request would be fail-fast instead);
+// (c) a timeout is retryable here too — but the chain only calls
+// Gemini when the remaining budget allows a real attempt, and the
+// 60s cap keeps the total under 110s. (d) rateLimitKind for Gemini
+// is best-effort: parseRateLimitKind was written for OpenRouter's
+// 429 bodies ("free-models-per-day"); Gemini's 429 bodies use
+// different wording, so an unrecognised body defaults to 'minute'
+// (see the parser) — a known approximation, disclosed in the R22
+// build report, not hidden.
+async function tryGemini(imageDataUrl, timeoutMs) {
+  const cfg = { url: GEMINI_URL, apiKey: process.env.GEMINI_API_KEY, model: GEMINI_MODEL };
+  const provider = 'gemini';
+  let res;
+  try {
+    res = await callChatCompletions(cfg, imageDataUrl, timeoutMs);
+  } catch (err) {
+    if (err && err.name === 'AbortError') return { ok: false, status: 504, message: PLAIN_ERRORS.timeout, retryable: true, crossRetryable: true, provider, model: cfg.model, failStage: 'timeout' };
+    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, provider, model: cfg.model, failStage: 'network' };
+  }
+  if (res.status === 400) return { ok: false, status: 400, message: PLAIN_ERRORS.badRequest, retryable: false, crossRetryable: false, provider, model: cfg.model };
+  if (res.status === 401 || res.status === 403) return { ok: false, status: 401, message: PLAIN_ERRORS.auth, retryable: false, crossRetryable: false, provider, model: cfg.model };
+  if (res.status === 402) return { ok: false, status: 402, message: PLAIN_ERRORS.billing, retryable: false, crossRetryable: false, provider, model: cfg.model };
+  if (res.status === 429) {
+    const kind = await parseRateLimitKind(res);
+    return {
+      ok: false, status: 429,
+      message: kind === 'day' ? PLAIN_ERRORS.rateLimitDay : PLAIN_ERRORS.rateLimitMinute,
+      retryable: true, crossRetryable: true, rateLimitKind: kind, provider, model: cfg.model,
+    };
+  }
+  if (res.status === 404) return { ok: false, status: 404, message: PLAIN_ERRORS.modelGone, retryable: true, crossRetryable: true, provider, model: cfg.model };
+  if (!res.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, provider, model: cfg.model };
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, provider, model: cfg.model };
+  }
+  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  const found = extractResult(text);
+  if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'extract', provider, model: cfg.model };
+  if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'safety', provider, model: cfg.model };
+  const check = verifyBuild(found.code, found.parts, found.objectName);
+  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason, provider, model: cfg.model };
+  return { ok: true, code: found.code, objectName: found.objectName, model: cfg.model, provider, parts: found.parts };
+}
+
+// V3 R22: the OpenRouter leg of the chain — primary, then gemma under
+// the OLD intra-provider rules (tryModel's `retryable`). Gemma's
+// timeout is capped so a configured downstream provider still keeps
+// MIN_FALLBACK_MS: with a fast primary failure gemma gets up to ~79s;
+// with no downstream provider configured, gemma may use the whole
+// remaining budget, exactly as before R22. If the remaining budget
+// cannot give gemma a full MIN_FALLBACK_MS window, gemma is not
+// started — the primary's error is returned instead of a doomed
+// attempt. Returns a tryModel-shaped result plus `attempts` (one
+// record per model tried: { provider, model, status, rateLimitKind? }).
+async function tryOpenRouter(imageDataUrl, start) {
+  const attempts = [];
+  const first = await tryModel(PRIMARY_MODEL, imageDataUrl, Math.min(FETCH_TIMEOUT_MS, chainRemainingMs(start)));
+  attempts.push({ provider: 'openrouter', model: PRIMARY_MODEL, status: first.ok ? 200 : first.status, rateLimitKind: first.rateLimitKind });
+  if (first.ok) return { ok: true, code: first.code, objectName: first.objectName, model: first.model, provider: 'openrouter', attempts };
+  if (!first.retryable) return { ...first, provider: 'openrouter', attempts };
+  const downstream = providerConfigured('gemini');
+  const remaining = chainRemainingMs(start);
+  const gemmaTimeout = downstream
+    ? Math.min(FETCH_TIMEOUT_MS, remaining - MIN_FALLBACK_MS)
+    : Math.min(FETCH_TIMEOUT_MS, remaining);
+  if (gemmaTimeout < MIN_FALLBACK_MS) return { ...first, provider: 'openrouter', attempts };
+  const second = await tryModel(FALLBACK_MODEL, imageDataUrl, gemmaTimeout);
+  attempts.push({ provider: 'openrouter', model: FALLBACK_MODEL, status: second.ok ? 200 : second.status, rateLimitKind: second.rateLimitKind });
+  if (second.ok) return { ok: true, code: second.code, objectName: second.objectName, model: second.model, provider: 'openrouter', attempts };
+  return { ...second, provider: 'openrouter', attempts };
+}
+
+// V3 R22: the provider chain — OpenRouter, then Gemini.
+// A provider is only tried when its key is configured AND the failure
+// that got us here is cross-provider retryable AND at least
+// MIN_FALLBACK_MS remain. A 400/401/402/403 anywhere stops the chain
+// immediately (fail fast — a bad request or bad key will not be fixed
+// by the next provider). When every configured provider fails, the
+// returned error is the LAST failure's plain-words message, with
+// `attempts` listing each provider tried and what it returned, and
+// `rateLimitKind` taken from the LAST 429 in the chain (the most
+// recent rate-limit state — e.g. an OpenRouter day-429 followed by a
+// Gemini minute-429 reports 'minute', the wait the user can act on).
+// When only one provider was tried, `attempts` holds a single provider
+// and errorExtra omits it, so the HTTP body is identical to the
+// pre-R22 body for single-provider failures.
+async function tryProviderChain(imageDataUrl) {
+  const start = Date.now();
+  const attempts = [];
+  let last = null;
+  let stopped = false;
+  if (providerConfigured('openrouter')) {
+    const r = await tryOpenRouter(imageDataUrl, start);
+    attempts.push(...r.attempts);
+    if (r.ok) return { ok: true, code: r.code, objectName: r.objectName, model: r.model, provider: 'openrouter' };
+    last = r;
+    if (r.crossRetryable === false) stopped = true;
+  }
+  if (!stopped && providerConfigured('gemini') && chainRemainingMs(start) >= MIN_FALLBACK_MS) {
+    const m = await tryGemini(imageDataUrl, Math.min(FALLBACK_PROVIDER_TIMEOUT_MS, chainRemainingMs(start)));
+    attempts.push({ provider: 'gemini', model: GEMINI_MODEL, status: m.ok ? 200 : m.status, rateLimitKind: m.rateLimitKind });
+    if (m.ok) return { ok: true, code: m.code, objectName: m.objectName, model: m.model, provider: 'gemini' };
+    last = m;
+  }
+  if (!last) return { ok: false, status: 503, message: PLAIN_ERRORS.noKey, retryable: false, crossRetryable: false, attempts };
+  const last429 = [...attempts].reverse().find((a) => a.rateLimitKind);
+  if (last429) last = { ...last, rateLimitKind: last429.rateLimitKind };
+  return { ...last, attempts };
 }
 
 module.exports = async (req, res) => {
@@ -4939,7 +6269,11 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return sendError(res, 405, PLAIN_ERRORS.badRequest);
-  if (!process.env.OPENROUTER_API_KEY) return sendError(res, 503, PLAIN_ERRORS.noKey);
+  // V3 R22: the no-key gate now needs at least ONE provider key, not
+  // specifically the OpenRouter one — the chain can start at Gemini
+  // when OpenRouter has no key. With no key at all the 503 is
+  // unchanged.
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) return sendError(res, 503, PLAIN_ERRORS.noKey);
 
   let body = req.body;
   if (typeof body === 'string') {
@@ -4955,13 +6289,14 @@ module.exports = async (req, res) => {
   }
   if (image.length > 4000000) return sendError(res, 400, PLAIN_ERRORS.tooBig);
 
-  const first = await tryModel(PRIMARY_MODEL, image);
-  if (first.ok) return res.status(200).json({ code: first.code, objectName: first.objectName, model: first.model });
-  if (!first.retryable) return sendError(res, first.status, first.message, errorExtra(first));
-
-  const second = await tryModel(FALLBACK_MODEL, image);
-  if (second.ok) return res.status(200).json({ code: second.code, objectName: second.objectName, model: second.model });
-  return sendError(res, second.status, second.message || PLAIN_ERRORS.unknown, errorExtra(second));
+  // V3 R22: the provider chain (OpenRouter -> Gemini) replaces
+  // the old two-model handler. The success body is unchanged
+  // ({ code, objectName, model }); the error body keeps the old shape
+  // ({ error, checkReason?, rateLimitKind? }) and adds providersTried
+  // only when 2+ providers were tried (see errorExtra).
+  const result = await tryProviderChain(image);
+  if (result.ok) return res.status(200).json({ code: result.code, objectName: result.objectName, model: result.model });
+  return sendError(res, result.status, result.message || PLAIN_ERRORS.unknown, errorExtra(result));
 };
 
 // Exported for local tests (the verifier stubs global fetch).
@@ -4992,12 +6327,29 @@ module.exports._bodyBackReliefRadius = bodyBackReliefRadius;
 module.exports._bodyAxisExtremeRadius = bodyAxisExtremeRadius;
 module.exports._bodyCovarianceAxis = bodyCovarianceAxis;
 module.exports._bodyCentroidAxis = bodyCentroidAxis;
+module.exports._bodyCentroidAxisRaw = bodyCentroidAxisRaw;
+module.exports._bodyCentroidAxisBbox = bodyCentroidAxisBbox;
+module.exports._bodySphereFitCentre = bodySphereFitCentre;
 module.exports._worldFaceOf = worldFaceOf;
 module.exports._keyBowHoleDiameter = keyBowHoleDiameter;
+module.exports._keyBowDepth = keyBowDepth;
+module.exports._bodyAxialGapRatio = bodyAxialGapRatio;
+module.exports._bodyConeSearchRim = bodyConeSearchRim;
+module.exports._bodyConeSecondRim = bodyConeSecondRim;
+module.exports._bodySurfaceRoughness = bodySurfaceRoughness;
 module.exports._tipApexProtrusion = tipApexProtrusion;
 module.exports._mouthBottomEdgePoints = mouthBottomEdgePoints;
 module.exports._shaftFrameWidth = shaftFrameWidth;
 module.exports._parseRateLimitKind = parseRateLimitKind;
+module.exports._tryGemini = tryGemini;
+module.exports._tryOpenRouter = tryOpenRouter;
+module.exports._tryProviderChain = tryProviderChain;
+module.exports._callChatCompletions = callChatCompletions;
+module.exports.GEMINI_MODEL = GEMINI_MODEL;
+module.exports.GEMINI_URL = GEMINI_URL;
+module.exports.TOTAL_BUDGET_MS = TOTAL_BUDGET_MS;
+module.exports.MIN_FALLBACK_MS = MIN_FALLBACK_MS;
+module.exports.FALLBACK_PROVIDER_TIMEOUT_MS = FALLBACK_PROVIDER_TIMEOUT_MS;
 module.exports._SYSTEM_PROMPT = SYSTEM_PROMPT;
 module.exports.PRIMARY_MODEL = PRIMARY_MODEL;
 module.exports.FALLBACK_MODEL = FALLBACK_MODEL;
