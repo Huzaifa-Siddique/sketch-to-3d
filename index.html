@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch to 3D — draw it, photo it, spin it</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; min-height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 30%, #fffbe8 0%, #fdf6d8 40%, #f4efe0 75%, #e9e4d2 100%);
+    color: #3a3000; padding: 18px 14px 40px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; text-align: center; }
+  h1 { font-size: 28px; font-weight: 800; letter-spacing: .2px; }
+  .sub { font-size: 15px; color: #6b5d1e; margin: 6px 0 18px; }
+  #thumb { width: 100%; max-width: 320px; border-radius: 12px; border: 2px solid #d8cfa8; margin: 0 auto 12px; display: block; }
+  .row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; min-width: 120px; min-height: 48px; padding: 15px 20px; border: none; border-radius: 26px;
+    background: #222; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.25); touch-action: manipulation; text-align: center;
+  }
+  .btn:active { transform: scale(.95); background: #000; }
+  .btn:disabled { background: #999; box-shadow: none; cursor: default; transform: none; }
+  .btn.big { width: 100%; max-width: 340px; padding: 17px 18px; font-size: 18px; margin: 14px 0 4px; }
+  .btn.ghost { background: #fff; color: #222; border: 2px solid #222; box-shadow: none; margin-top: 14px; }
+  .hint { font-size: 13px; color: #6b5d1e; margin-top: 12px; }
+  .status { font-size: 15px; min-height: 22px; margin: 10px 0; color: #6b5d1e; }
+  .status.err { color: #b00020; font-weight: 700; }
+  .objname { font-size: 19px; font-weight: 800; margin: 6px 0 8px; }
+  #viewer {
+    width: 100%; height: 380px; border: none; border-radius: 14px;
+    background: #fffdf4; box-shadow: 0 4px 18px rgba(0,0,0,.15); display: block;
+  }
+  #viewerWrap .row { margin-top: 12px; }
+  /* Downloads: all three on one row at 390px (3-col grid, 13px labels). */
+  #viewerWrap .row.dl-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  #viewerWrap .row.dl-row .btn { padding: 13px 6px; font-size: 13px; min-width: 0; }
+  @media (min-width: 768px) {
+    .wrap { max-width: 900px; }
+    #viewer { height: 520px; }
+  }
+  @media (min-width: 1400px) {
+    .wrap { max-width: 1200px; }
+    #viewer { height: 620px; }
+  }
+  #viewerWrap .btn { min-width: 0; padding: 13px 16px; font-size: 15px; }
+  /* File inputs must stay usable by their <label> on iOS Safari, so they are
+     visually hidden instead of display:none (the `hidden` attribute is a
+     known iOS picker fragility). They remain focusable and label-clickable. */
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; opacity: 0;
+  }
+  .foot { font-size: 12px; color: #8a7d4a; margin-top: 26px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sketch to 3D</h1>
+  <p class="sub">Draw it on paper. Take a photo. Get a 3D model.</p>
+
+  <div id="uploadBox">
+    <img id="thumb" alt="Your sketch" style="display:none">
+    <div class="row">
+      <label class="btn" for="fileInput">Choose photo</label>
+      <label class="btn" for="camInput">Take photo</label>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" class="visually-hidden">
+    <input type="file" id="camInput" accept="image/*" capture="environment" class="visually-hidden">
+    <p class="hint">Simple objects work best. Cup, kite, pencil, happy face, phone. Good light, flat paper, fill the frame.</p>
+  </div>
+
+  <button id="makeBtn" class="btn big" disabled>Make 3D model</button>
+  <p id="status" class="status"></p>
+
+  <div id="viewerWrap" style="display:none">
+    <p id="objName" class="objname"></p>
+    <p id="viewerHint" class="hint" style="margin:0 0 8px">3D Preview — drag to spin it. Drag to rotate • Pinch to zoom • Buttons work too</p>
+    <iframe id="viewer" sandbox="allow-scripts" title="3D preview"></iframe>
+    <div class="row dl-row">
+      <button id="dlGlb" class="btn" disabled>Download GLB</button>
+      <button id="dlObj" class="btn" disabled>Download OBJ</button>
+      <button id="dlStl" class="btn" disabled>Download STL</button>
+    </div>
+    <button id="newBtn" class="btn ghost">New sketch</button>
+  </div>
+
+  <p class="foot">AI builds a complete 3D model — front, back and sides — from your sketch. Downloads: GLB, OBJ, STL. FBX is not in this version.</p>
+</div>
+
+<script>
+// ---------- canned models for testing only: ?mock=smiley or ?mock=cup ----------
+// These are NOT the live path. The live path sends the sketch to the AI
+// (POST /api/generate.js) and builds the returned code.
+const MOCK_SMILEY = [
+'function buildModel(THREE) {',
+'  const g = new THREE.Group();',
+'  const yellow = new THREE.MeshPhysicalMaterial({ color: 0xffd500, roughness: 0.32, clearcoat: 0.55, clearcoatRoughness: 0.35 });',
+'  const black = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.22, clearcoat: 0.75, clearcoatRoughness: 0.25 });',
+'  g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 96, 96), yellow));',
+'  function eye(x, y) {',
+'    const e = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 48), black);',
+'    e.scale.set(0.12, 0.18, 0.062);',
+'    const r = Math.sqrt(0.985 * 0.985 - x * x - y * y);',
+'    e.position.set(x, y, r);',
+'    e.lookAt(e.position.clone().multiplyScalar(2));',
+'    g.add(e);',
+'  }',
+'  eye(-0.37, 0.34);',
+'  eye(0.37, 0.34);',
+'  const pts = [];',
+'  for (let i = 0; i <= 40; i++) {',
+'    const a = -1.061 + i * (2.122 / 40);',
+'    const x = 0.596 * Math.sin(a);',
+'    const y = 0.021 - 0.596 * Math.cos(a);',
+'    const z = Math.sqrt(Math.max(0.05, 0.985 * 0.985 - x * x - y * y));',
+'    pts.push(new THREE.Vector3(x, y, z));',
+'  }',
+'  const curve = new THREE.CatmullRomCurve3(pts);',
+'  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.04, 16, false), black));',
+'  return g;',
+'}'
+].join('\n');
+
+const MOCK_CUP = [
+'function buildModel(THREE) {',
+'  const g = new THREE.Group();',
+'  const blue = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4 });',
+'  const white = new THREE.MeshStandardMaterial({ color: 0xf5f5f0, roughness: 0.5 });',
+'  const brown = new THREE.MeshStandardMaterial({ color: 0x6f4e37, roughness: 0.6 });',
+'  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.9, 48), blue));',
+'  const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.44, 48), brown);',
+'  coffee.rotation.x = -Math.PI / 2;',
+'  coffee.position.y = 0.451;',
+'  g.add(coffee);',
+'  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.055, 16, 32, Math.PI), blue);',
+'  handle.position.set(0.52, 0.05, 0);',
+'  handle.rotation.z = -Math.PI / 2;',
+'  g.add(handle);',
+'  const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 48), white);',
+'  saucer.position.y = -0.48;',
+'  g.add(saucer);',
+'  return g;',
+'}'
+].join('\n');
+
+// ---------- the 3D viewer that runs inside a sandboxed iframe ----------
+// The model code can only touch THREE inside the frame. It cannot reach this page.
+const VIEWER_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8">'
++ '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">'
++ '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;position:fixed}'
++ 'body{background:radial-gradient(circle at 50% 38%,#fffbe8 0%,#fdf6d8 34%,#f4efe0 68%,#e9e4d2 100%);touch-action:none}'
++ '#stage{position:fixed;inset:0}#stage canvas{display:block;touch-action:none}'
++ '#controls{position:fixed;left:0;right:0;bottom:14px;display:flex;justify-content:center;gap:10px;z-index:6;padding:0 12px}'
++ '#controls button{min-width:52px;height:52px;padding:0 14px;border:none;border-radius:26px;background:#222;color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.28);touch-action:manipulation}'
++ '#controls button:active{transform:scale(.93);background:#000}#controls button.wide{font-size:15px;min-width:64px}'
++ '#err{position:fixed;left:8px;right:8px;top:10px;z-index:20;font:13px/1.5 sans-serif;color:#b00020;background:rgba(255,255,255,.9);padding:8px 10px;border-radius:8px;display:none}'
++ '#selftest{position:fixed;left:8px;top:56px;z-index:20;max-width:92vw;font:11px/1.45 monospace;color:#111;background:rgba(255,255,255,.85);padding:6px 8px;border-radius:6px;white-space:pre-wrap;word-break:break-word;display:none}</style>'
++ '<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}<\/script>'
++ '</head><body><div id="stage"></div><div id="err"></div><div id="selftest"></div>'
++ '<div id="controls"><button id="btn-left" aria-label="Rotate left">⟲</button><button id="btn-zoom-out" aria-label="Zoom out">−</button><button id="btn-reset" class="wide" aria-label="Reset view">Reset</button><button id="btn-zoom-in" aria-label="Zoom in">+</button><button id="btn-right" aria-label="Rotate right">⟳</button></div>'
++ '<script type="module">'
++ 'import * as THREE from "three";'
++ 'import { OrbitControls } from "three/addons/controls/OrbitControls.js";'
++ 'import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";'
++ 'import { OBJExporter } from "three/addons/exporters/OBJExporter.js";'
++ 'import { STLExporter } from "three/addons/exporters/STLExporter.js";'
++ 'const stage = document.getElementById("stage");'
++ 'const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });'
++ 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'
++ 'renderer.setSize(window.innerWidth, window.innerHeight);'
++ 'renderer.toneMapping = THREE.ACESFilmicToneMapping;'
++ 'renderer.toneMappingExposure = 1.12;'
++ 'renderer.domElement.style.touchAction = "none";'
++ 'stage.appendChild(renderer.domElement);'
++ 'const scene = new THREE.Scene();'
++ 'const camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 100);'
++ 'let camPreset = "front";'
++ 'let selftestOn = false;'
++ 'let selftestDone = false;'
++ 'let lastHomeDist = 0;'
++ 'let lastHomePos = new THREE.Vector3();'
++ '/* Fit reserves bottom space for the control bar (52px buttons + 14px offset = 66px band, +4px safety, doubled because the model is centred), at least 70px, so the model lower edge never sits behind the buttons. */'
++ '/* Fit (J9/R2R2): fit 2.45 — the smiley is ~300px tall at 362x380 with ~4px top margin and ~8px bottom-above-bar (crown clears, chin clears the 66px control bar). Still far from the rejected 239px shrink. The model is SHIFTED up 34px instead of shrunk. */'
++ 'function fitDistance() { const fit = 2.45; const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); const dH = fit / (2 * t); const dW = fit / (2 * t * camera.aspect); return Math.max(dH, dW); }'
++ 'function viewShiftWorld() { const d = fitDistance(); const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return 34 * (2 * d * t) / window.innerHeight; }'
++ 'function homeTarget() { return new THREE.Vector3(0, -viewShiftWorld(), 0); }'
++ 'function homePos() { const d = fitDistance(); const s = viewShiftWorld(); if (camPreset === "side") return new THREE.Vector3(d, 0.15 - s, 0); if (camPreset === "top") return new THREE.Vector3(0, d - s, 0.7); if (camPreset === "back") return new THREE.Vector3(0, 0.15 - s, -d); return new THREE.Vector3(0, 0.15 - s, d); }'
++ 'camera.position.copy(homePos());'
++ 'lastHomeDist = fitDistance();'
++ 'lastHomePos.copy(camera.position);'
++ 'scene.add(new THREE.HemisphereLight(0xffffff, 0xffe9a8, 0.85));'
++ 'const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(3, 4, 5); scene.add(key);'
++ 'const fill = new THREE.DirectionalLight(0xfff2c0, 0.65); fill.position.set(-4, -0.5, 3); scene.add(fill);'
++ 'const rim = new THREE.DirectionalLight(0xffffff, 1.1); rim.position.set(-2, 2, -4); scene.add(rim);'
++ 'const rear = new THREE.DirectionalLight(0xfff2c0, 0.9); rear.position.set(0, 0.5, -4); scene.add(rear);'
++ 'const controls = new OrbitControls(camera, renderer.domElement);'
++ 'controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false; controls.rotateSpeed = 0.55;'
++ 'controls.minDistance = 2.4; controls.maxDistance = 12; controls.minPolarAngle = 0.15; controls.maxPolarAngle = Math.PI - 0.15;'
++ 'controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };'
++ 'controls.autoRotate = true; controls.autoRotateSpeed = 1.1; controls.target.copy(homeTarget());'
++ 'controls.addEventListener("start", () => { controls.autoRotate = false; });'
++ '/* Pinch partial-lift recovery: stock OrbitControls r160 resets its state machine to NONE on ANY pointerup, so a lifted finger leaves the gesture dead until every finger lifts. We track the pointers really down; when one lifts, we re-press the ones still down at their current positions, so the gesture continues with no jump. */'
++ 'const _setCap = renderer.domElement.setPointerCapture.bind(renderer.domElement);'
++ 'renderer.domElement.setPointerCapture = (id) => { try { _setCap(id); } catch (e) {} };'
++ 'const _relCap = renderer.domElement.releasePointerCapture.bind(renderer.domElement);'
++ 'renderer.domElement.releasePointerCapture = (id) => { try { _relCap(id); } catch (e) {} };'
++ 'const livePointers = new Map();'
++ 'function trackLivePointer(ev) { if (!ev.isTrusted) return; if (ev.type === "pointerdown" || ev.type === "pointermove") { livePointers.set(ev.pointerId, { id: ev.pointerId, x: ev.clientX, y: ev.clientY, type: ev.pointerType, primary: ev.isPrimary }); } else { livePointers.delete(ev.pointerId); } }'
++ 'function reanchorPointers() { if (livePointers.size === 0) return; const cv = renderer.domElement; const remaining = Array.from(livePointers.values()); for (const p of remaining) { cv.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, pointerId: p.id, pointerType: p.type, isPrimary: p.primary })); } for (const p of remaining) { cv.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, pointerId: p.id, pointerType: p.type, isPrimary: p.primary })); } }'
++ 'renderer.domElement.addEventListener("pointerdown", trackLivePointer);'
++ 'renderer.domElement.addEventListener("pointermove", trackLivePointer);'
++ 'renderer.domElement.addEventListener("pointerup", (ev) => { trackLivePointer(ev); if (ev.isTrusted && (ev.pointerType === "touch" || ev.pointerType === "pen")) setTimeout(reanchorPointers, 0); });'
++ 'renderer.domElement.addEventListener("pointercancel", (ev) => { trackLivePointer(ev); if (ev.isTrusted && (ev.pointerType === "touch" || ev.pointerType === "pen")) setTimeout(reanchorPointers, 0); });'
++ 'function rotateBy(rad) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), rad); camera.position.copy(controls.target).add(off); controls.update(); }'
++ 'function dolly(f) { const off = camera.position.clone().sub(controls.target); const len = THREE.MathUtils.clamp(off.length() * f, controls.minDistance, controls.maxDistance); off.setLength(len); camera.position.copy(controls.target).add(off); controls.update(); }'
++ 'function resetView() { controls.enableDamping = false; controls.update(); controls.enableDamping = true; camera.position.copy(homePos()); lastHomePos.copy(camera.position); lastHomeDist = fitDistance(); controls.target.copy(homeTarget()); controls.autoRotate = false; controls.update(); clearTimeout(__arTimer); __arTimer = setTimeout(() => { if (camPreset === "front" && !selftestOn) controls.autoRotate = true; }, 1500); }'
++ 'document.getElementById("btn-left").addEventListener("click", () => { controls.autoRotate = false; rotateBy(0.5); });'
++ 'document.getElementById("btn-right").addEventListener("click", () => { controls.autoRotate = false; rotateBy(-0.5); });'
++ 'document.getElementById("btn-zoom-in").addEventListener("click", () => { dolly(0.82); });'
++ 'document.getElementById("btn-zoom-out").addEventListener("click", () => { dolly(1.22); });'
++ 'document.getElementById("btn-reset").addEventListener("click", resetView);'
++ 'window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); const nd = fitDistance(); const __off = camera.position.clone().sub(controls.target); const __homeOff = lastHomePos.clone().sub(homeTarget()); const __offLen = __off.length(); const __homeLen = __homeOff.length(); let __dAz = Math.atan2(__off.x, __off.z) - Math.atan2(__homeOff.x, __homeOff.z); if (__dAz > Math.PI) __dAz -= 2 * Math.PI; if (__dAz < -Math.PI) __dAz += 2 * Math.PI; const __dPol = Math.acos(THREE.MathUtils.clamp(__offLen ? __off.y / __offLen : 1, -1, 1)) - Math.acos(THREE.MathUtils.clamp(__homeLen ? __homeOff.y / __homeLen : 1, -1, 1)); const __dDist = Math.abs(__offLen - __homeLen) / __homeLen; if (lastHomePos && Math.abs(__dAz) < 0.08 && Math.abs(__dPol) < 0.08 && __dDist < 0.08) { camera.position.copy(homePos()); lastHomePos.copy(camera.position); controls.target.copy(homeTarget()); controls.update(); } else if (modelExceedsFrame()) { const dir = camera.position.clone().sub(controls.target).normalize(); controls.target.copy(homeTarget()); camera.position.copy(controls.target).addScaledVector(dir, nd); lastHomePos.copy(homePos()); controls.update(); } lastHomeDist = nd; });'
++ 'function modelExceedsFrame() { if (!currentGroup) return false; try { currentGroup.updateMatrixWorld(true); const W = window.innerWidth; const H = window.innerHeight; const barTop = H - 66; let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity; const v = new THREE.Vector3(); const consider = () => { const x = (v.x + 1) / 2 * W; const y = (1 - v.y) / 2 * H; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }; currentGroup.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isPoints) return; const pos = o.geometry && o.geometry.attributes && o.geometry.attributes.position; if (!pos || !pos.count) return; const n = pos.count; const stride = Math.max(1, Math.floor(n / 500)); for (let i = 0; i < n; i += stride) { v.fromBufferAttribute(pos, i); o.localToWorld(v); v.project(camera); consider(); } }); const box = new THREE.Box3().setFromObject(currentGroup); if (!box.isEmpty()) { const c = box.getCenter(new THREE.Vector3()); const s = box.getSize(new THREE.Vector3()); const pts = [[c.x + s.x / 2, c.y, c.z], [c.x - s.x / 2, c.y, c.z], [c.x, c.y + s.y / 2, c.z], [c.x, c.y - s.y / 2, c.z], [c.x, c.y, c.z + s.z / 2], [c.x, c.y, c.z - s.z / 2]]; for (const p of pts) { v.set(p[0], p[1], p[2]); v.project(camera); consider(); } } if (minX === Infinity) return false; const TOL = 0; return minX < -TOL || maxX > W + TOL || minY < -TOL || maxY > barTop + TOL; } catch (e) { return false; } }'
++ '/* Model-code lockdown (R2R fix F1): the model function runs with NO network/DOM capability. Trusted captures first; the viewer keeps working references, then the globals below are neutered for anything model code can reach. */'
++ 'const RealFunction = Function;'
++ 'const __FunctionProto = Function.prototype;'
++ 'const DOC = document;'
++ 'const WIN = window;'
++ 'const PARENT = window.parent;'
++ 'const postToParent = (msg) => { try { PARENT.postMessage(msg, "*"); } catch (e) {} };'
++ 'const __blocked = () => { throw new Error("Not available."); };'
++ '/* Neuter network/DOM globals in this frame. The viewer itself uses none of these after init (renderer/controls already exist). Blob is deliberately NOT neutered: GLTFExporter builds GLB with new Blob. setTimeout/clearTimeout/requestAnimationFrame are NOT neutered either: three.js uses setTimeout in texture paths; model code gets them as undefined parameters instead. */'
++ 'try { window.fetch = __blocked; } catch (e) {}'
++ 'try { window.XMLHttpRequest = __blocked; } catch (e) {}'
++ 'try { window.WebSocket = __blocked; } catch (e) {}'
++ 'try { window.EventSource = __blocked; } catch (e) {}'
++ 'try { window.Image = __blocked; } catch (e) {}'
++ 'try { window.Audio = __blocked; } catch (e) {}'
++ 'try { window.Worker = __blocked; } catch (e) {}'
++ 'try { window.SharedWorker = __blocked; } catch (e) {}'
++ 'try { window.eval = __blocked; } catch (e) {}'
++ 'try { window.Function = __blocked; } catch (e) {}'
++ 'try { window.URL = __blocked; } catch (e) {}'
++ 'try { window.open = __blocked; } catch (e) {}'
++ 'try { window.alert = __blocked; } catch (e) {}'
++ 'try { window.prompt = __blocked; } catch (e) {}'
++ 'try { window.confirm = __blocked; } catch (e) {}'
++ 'try { navigator.sendBeacon = __blocked; } catch (e) {}'
++ '/* document.createElement: only canvas survives (GLTFExporter needs it for image paths); img/script/iframe/link and everything else throws. */'
++ 'const __realCreateElement = document.createElement.bind(document);'
++ 'const __realCreateElementNS = document.createElementNS.bind(document);'
++ 'try { document.createElement = (tag) => { if (String(tag).toLowerCase() === "canvas") return __realCreateElement(tag); throw new Error("Not available."); }; } catch (e) {}'
++ 'try { document.createElementNS = (ns, tag) => { if (String(tag).toLowerCase() === "canvas") return __realCreateElementNS(ns, tag); throw new Error("Not available."); }; } catch (e) {}'
++ 'try { document.write = __blocked; } catch (e) {}'
++ 'try { document.writeln = __blocked; } catch (e) {}'
++ '/* Close the .constructor escape: every function object resolves its constructor through Function.prototype.constructor (async/generator functions through their own prototypes). Point all three at the throwing stub, then freeze the built-in prototypes so model code cannot restore them or pollute Object/Array.prototype. NOTE: __FunctionProto is captured BEFORE window.Function is neutered below — after that assignment bare Function.prototype would be undefined and this call would throw. */'
++ 'try { Object.defineProperty(__FunctionProto, "constructor", { value: __blocked, writable: false, configurable: false }); } catch (e) {}'
++ 'const __AsyncFunction = (async function () {}).constructor;'
++ 'const __GeneratorFunction = (function * () {}).constructor;'
++ 'try { Object.defineProperty(__AsyncFunction.prototype, "constructor", { value: __blocked, writable: false, configurable: false }); } catch (e) {}'
++ 'try { Object.defineProperty(__GeneratorFunction.prototype, "constructor", { value: __blocked, writable: false, configurable: false }); } catch (e) {}'
++ '/* G4c: remove the legacy __defineGetter__/__defineSetter__ (a second way to plant a prototype accessor, bypassing the defineProperty guard) before Object.prototype is frozen. */'
++ 'try { delete Object.prototype.__defineGetter__; } catch (e) {}'
++ 'try { delete Object.prototype.__defineSetter__; } catch (e) {}'
++ 'try { Object.freeze(Object.prototype); } catch (e) {}'
++ 'try { Object.freeze(Array.prototype); } catch (e) {}'
++ 'try { Object.freeze(__FunctionProto); } catch (e) {}'
++ 'try { Object.freeze(__AsyncFunction.prototype); } catch (e) {}'
++ 'try { Object.freeze(__GeneratorFunction.prototype); } catch (e) {}'
++ '/* Restricted THREE (F1): pure geometry/material/math only. No loaders, no textures, no renderer, no cameras, no lights. The API prompt only ever asks for Sphere/Box/Cylinder/Cone/Torus/Tube/Circle/Plane/CatmullRomCurve3/MeshStandardMaterial/Group/Vector3; the mocks add MeshPhysicalMaterial/TorusGeometry. */'
++ 'const SAFE_THREE = { Group: THREE.Group, Object3D: THREE.Object3D, Mesh: THREE.Mesh, Line: THREE.Line, LineSegments: THREE.LineSegments, Points: THREE.Points, BufferGeometry: THREE.BufferGeometry, BufferAttribute: THREE.BufferAttribute, Float32BufferAttribute: THREE.Float32BufferAttribute, Uint16BufferAttribute: THREE.Uint16BufferAttribute, Uint32BufferAttribute: THREE.Uint32BufferAttribute, Int32BufferAttribute: THREE.Int32BufferAttribute, Vector2: THREE.Vector2, Vector3: THREE.Vector3, Vector4: THREE.Vector4, Matrix3: THREE.Matrix3, Matrix4: THREE.Matrix4, Quaternion: THREE.Quaternion, Euler: THREE.Euler, Color: THREE.Color, MathUtils: THREE.MathUtils, Shape: THREE.Shape, Path: THREE.Path, Curve: THREE.Curve, CurvePath: THREE.CurvePath, CatmullRomCurve3: THREE.CatmullRomCurve3, CubicBezierCurve3: THREE.CubicBezierCurve3, QuadraticBezierCurve3: THREE.QuadraticBezierCurve3, LineCurve3: THREE.LineCurve3, EllipseCurve: THREE.EllipseCurve, SplineCurve: THREE.SplineCurve, ArcCurve: THREE.ArcCurve, BoxGeometry: THREE.BoxGeometry, SphereGeometry: THREE.SphereGeometry, CylinderGeometry: THREE.CylinderGeometry, ConeGeometry: THREE.ConeGeometry, CircleGeometry: THREE.CircleGeometry, PlaneGeometry: THREE.PlaneGeometry, RingGeometry: THREE.RingGeometry, TorusGeometry: THREE.TorusGeometry, TorusKnotGeometry: THREE.TorusKnotGeometry, TubeGeometry: THREE.TubeGeometry, LatheGeometry: THREE.LatheGeometry, ExtrudeGeometry: THREE.ExtrudeGeometry, ShapeGeometry: THREE.ShapeGeometry, TetrahedronGeometry: THREE.TetrahedronGeometry, OctahedronGeometry: THREE.OctahedronGeometry, IcosahedronGeometry: THREE.IcosahedronGeometry, DodecahedronGeometry: THREE.DodecahedronGeometry, CapsuleGeometry: THREE.CapsuleGeometry, Material: THREE.Material, MeshBasicMaterial: THREE.MeshBasicMaterial, MeshStandardMaterial: THREE.MeshStandardMaterial, MeshPhysicalMaterial: THREE.MeshPhysicalMaterial, MeshLambertMaterial: THREE.MeshLambertMaterial, MeshPhongMaterial: THREE.MeshPhongMaterial, MeshNormalMaterial: THREE.MeshNormalMaterial, MeshToonMaterial: THREE.MeshToonMaterial, LineBasicMaterial: THREE.LineBasicMaterial, LineDashedMaterial: THREE.LineDashedMaterial, PointsMaterial: THREE.PointsMaterial, DoubleSide: THREE.DoubleSide, FrontSide: THREE.FrontSide, BackSide: THREE.BackSide, NormalBlending: THREE.NormalBlending, AdditiveBlending: THREE.AdditiveBlending, SubtractiveBlending: THREE.SubtractiveBlending, MultiplyBlending: THREE.MultiplyBlending, NoBlending: THREE.NoBlending, RepeatWrapping: THREE.RepeatWrapping, ClampToEdgeWrapping: THREE.ClampToEdgeWrapping, MirroredRepeatWrapping: THREE.MirroredRepeatWrapping, NearestFilter: THREE.NearestFilter, LinearFilter: THREE.LinearFilter, NearestMipmapNearestFilter: THREE.NearestMipmapNearestFilter, LinearMipmapLinearFilter: THREE.LinearMipmapLinearFilter, SRGBColorSpace: THREE.SRGBColorSpace, LinearSRGBColorSpace: THREE.LinearSRGBColorSpace, NoColorSpace: THREE.NoColorSpace, FlatShading: THREE.FlatShading, SmoothShading: THREE.SmoothShading };'
++ '/* J10 allocation registry: a build that allocates geometry/material and then throws leaves the partial group unreachable inside buildModel, so the viewer cannot dispose it by reference. Wrap every SAFE class that owns a dispose() (geometries + materials) in a tracking subclass that records each instance created during the current build; buildFromCode disposes the recorded instances that were never adopted. */'
++ 'let __allocRegistry = null;'
++ 'function __trackClass(__Base) { const __Sub = class extends __Base { static [Symbol.hasInstance](__inst) { return __inst instanceof __Base; } constructor(...__args) { super(...__args); if (__allocRegistry) __allocRegistry.push(this); } }; __Sub.__isTracked = true; return __Sub; }'
++ 'for (const __k of Object.keys(SAFE_THREE)) { const __v = SAFE_THREE[__k]; if (typeof __v === "function" && __v.prototype && typeof __v.prototype.dispose === "function") SAFE_THREE[__k] = __trackClass(__v); }'
++ '/* Prototype guard (F1): three.js constructors ASSIGN to their own prototypes (Vector3.prototype.isVector3 = true on every construction), so the prototypes must NOT be frozen. Instead snapshot every method on the SAFE classes now and restore any replaced one after each build, so model code cannot permanently break the viewer by rewriting a prototype method. Added properties are left alone (they cannot break existing calls); only replaced snapshot properties are restored. */'
++ 'const __protoSnapshot = [];'
++ 'const __protoKeySet = new Map(); const __protoParent = new Map();'
++ 'for (const __k of Object.keys(SAFE_THREE)) { const __v = SAFE_THREE[__k]; if (__v && __v.prototype) { let __p = __v.prototype; const __seen = new Set(); while (__p && __p !== Object.prototype && !__seen.has(__p)) { __seen.add(__p); if (!__protoParent.has(__p)) { try { __protoParent.set(__p, Object.getPrototypeOf(__p)); } catch (e) {} } if (!__protoKeySet.has(__p)) __protoKeySet.set(__p, new Set()); const __keys = __protoKeySet.get(__p); for (const __n of Object.getOwnPropertyNames(__p)) { __keys.add(__n); try { __protoSnapshot.push([__p, __n, Object.getOwnPropertyDescriptor(__p, __n)]); } catch (e) {} } __p = Object.getPrototypeOf(__p); } } }'
++ '/* G4: freeze the tracked subclass prototypes (fresh objects three never assigns to — its constructors write isX flags to the REAL prototypes by name) and the shared built-ins, so model code cannot poison a global or a method the viewer relies on. A write attempt throws inside the strict-mode build and fails closed. The real three prototypes stay unfrozen (three assigns to them in constructors); the delete-added restore below covers them. */'
++ 'for (const __k of Object.keys(SAFE_THREE)) { const __v = SAFE_THREE[__k]; if (__v && __v.__isTracked && __v.prototype) { try { Object.freeze(__v.prototype); } catch (e) {} } }'
++ '/* G4b: guard Object.defineProperty/defineProperties. A getter trap on a THREE prototype survives the restore when it is non-configurable (it cannot be deleted or redefined), so the restore alone cannot close it. Wrap both functions at lockdown: defining any property on a snapshotted THREE prototype throws, while instance targets (Euler/Quaternion reflectivity, model code own objects) still work. The viewer keeps the real functions (captured first) for its own restore. Installed BEFORE Object is frozen below. */'
++ 'const __realDefineProperty = Object.defineProperty;'
++ 'const __realDefineProperties = Object.defineProperties;'
++ 'const __guardDefineProperty = (target, key, desc) => { if (target && (typeof target === "object" || typeof target === "function") && __protoKeySet.has(target)) throw new Error("Not available."); return __realDefineProperty(target, key, desc); };'
++ 'const __guardDefineProperties = (target, props) => { if (target && (typeof target === "object" || typeof target === "function") && __protoKeySet.has(target)) throw new Error("Not available."); return __realDefineProperties(target, props); };'
++ 'const __realFreeze = Object.freeze;'
++ 'const __realSetPrototypeOf = Object.setPrototypeOf;'
++ '/* S3/S4 guards: three r160 constructors write X.prototype.isX = true on EVERY construction for Vector2/3/4 and Matrix3/4 only (three.module.js:649/1126/2272/3901/5883) — freezing one of those five prototypes throws on the next construction and can never be unfrozen. Re-parenting any snapshotted prototype removes inherited methods the viewer depends on. Legitimate model code never freezes a THREE prototype or re-parents one, so those two calls throw here; every other target passes through to the real function. Installed BEFORE Object is frozen below, like the defineProperty guard. */'
++ 'const __ISX_PROTOS = [THREE.Vector2.prototype, THREE.Vector3.prototype, THREE.Vector4.prototype, THREE.Matrix3.prototype, THREE.Matrix4.prototype];'
++ 'const __guardFreeze = (target) => { if (target && __ISX_PROTOS.indexOf(target) !== -1) throw new Error("Not available."); return __realFreeze(target); };'
++ 'const __guardSetPrototypeOf = (target, proto) => { if (target && (typeof target === "object" || typeof target === "function") && __protoKeySet.has(target)) throw new Error("Not available."); return __realSetPrototypeOf(target, proto); };'
++ 'try { Object.defineProperty = __guardDefineProperty; } catch (e) {}'
++ 'try { Object.defineProperties = __guardDefineProperties; } catch (e) {}'
++ 'try { Object.freeze = __guardFreeze; } catch (e) {}'
++ 'try { Object.setPrototypeOf = __guardSetPrototypeOf; } catch (e) {}'
++ 'for (const __k of Object.keys(SAFE_THREE)) { try { Object.freeze(SAFE_THREE[__k]); } catch (e) {} }'
++ 'for (const __b of [Object, Array, String, Number, Boolean, BigInt, Symbol, Math, JSON, Date, Error, TypeError, RangeError, ReferenceError, SyntaxError, RegExp, Map, Set, WeakMap, WeakSet, Promise, ArrayBuffer, DataView]) { try { Object.freeze(__b); } catch (e) {} }'
++ 'for (const __b of [String, Number, Boolean, BigInt, Symbol, Error, TypeError, RangeError, ReferenceError, SyntaxError, RegExp, Date, Map, Set, WeakMap, WeakSet, Promise, ArrayBuffer, DataView]) { try { if (__b.prototype) Object.freeze(__b.prototype); } catch (e) {} }'
++ 'function __restorePrototypes() { for (const __entry of __protoParent) { const __proto = __entry[0]; const __parent = __entry[1]; try { if (Object.getPrototypeOf(__proto) !== __parent) __realSetPrototypeOf(__proto, __parent); } catch (e) {} } for (const __entry of __protoSnapshot) { const __proto = __entry[0]; const __name = __entry[1]; const __desc = __entry[2]; try { const __cur = Object.getOwnPropertyDescriptor(__proto, __name); if (!__cur) { __realDefineProperty(__proto, __name, __desc); continue; } if (__cur.value !== __desc.value || __cur.get !== __desc.get || __cur.set !== __desc.set) __realDefineProperty(__proto, __name, __desc); } catch (e) {} } for (const __entry of __protoKeySet) { const __proto = __entry[0]; const __keys = __entry[1]; try { for (const __n of Object.getOwnPropertyNames(__proto)) { if (!__keys.has(__n)) { try { delete __proto[__n]; } catch (e) {} } } } catch (e) {} } }'
++ '/* S1/J1 render-callback strip: three r160 calls object/material onBeforeRender, object onAfterRender, material onBeforeCompile and material customProgramCacheKey with the REAL renderer every frame (three.module.js:29558/29645/29956/29961/29981/30038/20917), so a callback planted on a model object or material hands model code the renderer, scene and camera. The API prompt never asks for these hooks, so they are stripped from every adopted object/material after a build AND on every frame before render. Strip = delete the own property (falls back to the prototype no-op); if delete fails (non-configurable own property) assign the captured prototype no-op; if that also fails the object is unstrippable. */'
++ 'const __OBJ_ONBEFORE = THREE.Object3D.prototype.onBeforeRender;'
++ 'const __OBJ_ONAFTER = THREE.Object3D.prototype.onAfterRender;'
++ 'const __MAT_ONBEFORE = THREE.Material.prototype.onBeforeRender;'
++ 'const __MAT_ONCOMPILE = THREE.Material.prototype.onBeforeCompile;'
++ 'const __MAT_CACHEKEY = THREE.Material.prototype.customProgramCacheKey;'
++ 'function __stripOne(__o, __prop, __noop) { if (!__o || (typeof __o !== "object" && typeof __o !== "function")) return true; let __has = false; try { __has = Object.prototype.hasOwnProperty.call(__o, __prop); } catch (e) { return false; } if (!__has) return true; try { delete __o[__prop]; } catch (e) {} let __v; try { __v = __o[__prop]; } catch (e) { return false; } if (typeof __v !== "function" || __v === __noop) return true; try { __o[__prop] = __noop; } catch (e) {} try { __v = __o[__prop]; } catch (e) { return false; } return typeof __v !== "function" || __v === __noop; }'
++ 'function __stripRenderCallbacks(__group, __hideBad) { if (!__group) return true; let __ok = true; try { if (typeof __group.traverse !== "function") return false; __group.traverse((__o) => { let __good = true; try { __good = __stripOne(__o, "onBeforeRender", __OBJ_ONBEFORE) && __good; __good = __stripOne(__o, "onAfterRender", __OBJ_ONAFTER) && __good; const __mats = Array.isArray(__o.material) ? __o.material : (__o.material ? [__o.material] : []); const __seenMats = new Set(); const __stripMat = (__m) => { if (!__m || typeof __m !== "object" || __seenMats.has(__m)) return; __seenMats.add(__m); __good = __stripOne(__m, "onBeforeRender", __MAT_ONBEFORE) && __good; __good = __stripOne(__m, "onBeforeCompile", __MAT_ONCOMPILE) && __good; __good = __stripOne(__m, "customProgramCacheKey", __MAT_CACHEKEY) && __good; }; for (const __m of __mats) __stripMat(__m); let __objDeps = null; try { __objDeps = [__o.customDepthMaterial, __o.customDistanceMaterial]; } catch (e) { __objDeps = null; } if (__objDeps) for (const __d of __objDeps) { if (__d && typeof __d === "object") __stripMat(__d); } } catch (e) { __good = false; } if (!__good) { __ok = false; if (__hideBad) { try { __o.visible = false; } catch (e) {} } } }); } catch (e) { return false; } return __ok; }'
++ '/* S3/S4 integrity check: the restore above already repairs a replaced [[Prototype]] and any changed/deleted snapshot property, so this verifies what is left. A frozen per-construction prototype, a [[Prototype]] the restore could not repair, or a snapshot property that is still wrong (or an added key the restore could not delete) means this viewer can no longer build — the only recovery is a fresh iframe, so the parent reloads on the viewer-corrupt message. Returns true when healthy. */'
++ 'function __checkPrototypeIntegrity() { try { __restorePrototypes(); for (const __entry of __protoParent) { const __proto = __entry[0]; const __parent = __entry[1]; try { if (Object.getPrototypeOf(__proto) !== __parent) return false; } catch (e) { return false; } } for (const __p of __ISX_PROTOS) { try { if (Object.isFrozen(__p)) return false; } catch (e) { return false; } } for (const __entry of __protoSnapshot) { const __proto = __entry[0]; const __name = __entry[1]; const __desc = __entry[2]; let __cur = null; try { __cur = Object.getOwnPropertyDescriptor(__proto, __name); } catch (e) { return false; } if (!__cur) return false; if (__cur.value !== __desc.value || __cur.get !== __desc.get || __cur.set !== __desc.set) return false; if (__ISX_PROTOS.indexOf(__proto) !== -1 && (__cur.writable !== __desc.writable || __cur.configurable !== __desc.configurable || __cur.enumerable !== __desc.enumerable)) return false; } for (const __entry of __protoKeySet) { const __proto = __entry[0]; const __keys = __entry[1]; let __names = null; try { __names = Object.getOwnPropertyNames(__proto); } catch (e) { return false; } for (const __n of __names) { if (!__keys.has(__n)) return false; } } return true; } catch (e) { return false; } }'
++ 'function __reportCorruption() { try { postToParent({ type: "viewer-corrupt", message: "The 3D viewer hit a problem and needs a fresh start. Tap Make 3D model again." }); } catch (e) {} }'
++ 'try { Object.freeze(THREE.MathUtils); } catch (e) {}'
++ 'try { Object.freeze(SAFE_THREE); } catch (e) {}'
++ '/* Build/export tokens (F2): generated here, kept in closure (never on window), announced to the parent in build-started/export-started, echoed in every outcome message. */'
++ 'let currentBuildToken = null;'
++ 'let currentExportToken = null;'
++ 'let __tokenCounter = 0;'
++ 'function newToken() { __tokenCounter += 1; return "t" + __tokenCounter + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10) + "-" + Math.random().toString(36).slice(2, 10); }'
++ 'let __arTimer = null;'
++ 'let currentGroup = null;'
++ 'function showErr(msg) { const e = document.getElementById("err"); e.textContent = msg; e.style.display = "block"; }'
++ 'function hideErr() { const e = document.getElementById("err"); e.style.display = "none"; e.textContent = ""; }'
++ '/* Second denylist, inside the viewer: same normalize-then-block logic as the parent (string-aware comment strip, whitespace collapsed, quotes unified), so a bypass of the parent list still cannot execute here. */'
++ 'function stripComments(code) { let out = ""; let i = 0; let q = null; while (i < code.length) { const c = code[i]; const n = code[i + 1] || ""; if (q) { out += c; if (c === "\\\\" && i + 1 < code.length) { out += code[i + 1]; i += 2; continue; } if (c === q) q = null; i++; continue; } if (c === "\\"" || c === String.fromCharCode(39) || c === "`") { q = c; out += c; i++; continue; } if (c === "/" && n === "/") { while (i < code.length && code[i] !== "\\n") i++; continue; } if (c === "/" && n === "*") { i += 2; while (i < code.length && !(code[i] === "*" && code[i + 1] === "/")) i++; i += 2; continue; } out += c; i++; } return out; }'
++ 'function stripStringLiterals(code) { let out = ""; let i = 0; while (i < code.length) { const c = code[i]; if (c === "\\"" || c === String.fromCharCode(39) || c === "`") { const q = c; out += "\\"\\""; i++; while (i < code.length) { if (code[i] === "\\\\") { i += 2; continue; } if (code[i] === q) { i++; break; } i++; } continue; } out += c; i++; } return out; }'
++ 'function collectStringLiterals(code) { const lits = []; let i = 0; while (i < code.length) { const c = code[i]; if (c === "\\"" || c === String.fromCharCode(39) || c === "`") { const q = c; let s = ""; i++; while (i < code.length) { if (code[i] === "\\\\" && i + 1 < code.length) { s += code[i] + code[i + 1]; i += 2; continue; } if (code[i] === q) { i++; break; } s += code[i]; i++; } lits.push(s); continue; } i++; } return lits; }'
++ 'function decodeUnicodeEscapes(s) { return s.replace(/\\\\u([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\\\x([0-9a-fA-F]{2})/g, (m, h) => String.fromCharCode(parseInt(h, 16))); }'
++ 'const DANGEROUS_NAMES = ["fetch", "eval", "Function", "postMessage", "document", "window", "location", "constructor", "localStorage", "sessionStorage", "XMLHttpRequest", "WebSocket", "setTimeout", "setInterval", "parent", "top", "frames", "globalThis", "navigator", "Image", "Worker", "cookie", "createElement", "sendBeacon", "__proto__", "prototype", "__viewer", "queueMicrotask", "Promise", "cancelAnimationFrame"];'
++ 'const FORBIDDEN = ["fetch(", "fetch`", "eval(", "eval`", "Function(", "Function`", "XMLHttpRequest", "WebSocket", "import(", "document.", "window.", "localStorage", "sessionStorage", "location.", "navigator.", "while(", "for(;;", "setInterval", "setTimeout", "queueMicrotask", "Promise", "cancelAnimationFrame", "__viewer", "history", "async", "MutationObserver", "ResizeObserver", "IntersectionObserver", "MessageChannel", "BroadcastChannel", "structuredClone", "alert(", "prompt(", "confirm(", "Worker", "postMessage", "Image(", "Audio(", "globalThis", "constructor", ",eval)", "[\\"fetch\\"]", "[\\"eval\\"]", "[\\"Function\\"]", "[\\"postMessage\\"]", "[\\"document\\"]", "[\\"window\\"]", "[\\"location\\"]", "[\\"constructor\\"]", "[\\"localStorage\\"]"];'
++ 'const FORBIDDEN_RE = [/\\bparent\\s*[\\.\\[]/, /\\bframes\\s*[\\.\\[]/, /\\btop\\s*[\\.\\[]/];'
++ 'function codeLooksSafe(code) { if (!code || typeof code !== "string") return false; if (code.length > 20000 || code.split("\\n").length > 150) return false; if (!/function\\s+buildModel\\s*\\(/.test(code)) return false; const noStrings = stripStringLiterals(stripComments(code)); const decoded = decodeUnicodeEscapes(noStrings); const norm = decoded.replace(/\\s+/g, ""); for (const bad of FORBIDDEN) { if (norm.indexOf(bad) !== -1) return false; } for (const re of FORBIDDEN_RE) { if (re.test(decoded)) return false; } for (const lit of collectStringLiterals(stripComments(code))) { if (DANGEROUS_NAMES.indexOf(decodeUnicodeEscapes(lit).trim()) !== -1) return false; } return true; }'
++ 'function disposeObject(root) { root.traverse((o) => { if ((o.isMesh || o.isLine || o.isPoints) && o.geometry) o.geometry.dispose(); const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []); for (const m of mats) { if (!m) continue; for (const k of Object.keys(m)) { const v = m[k]; if (v && v.isTexture) v.dispose(); } m.dispose(); } }); }'
++ 'function countTriangles(group) { let tris = 0; try { group.traverse((o) => { if (o.isMesh && o.geometry) { const pos = o.geometry.attributes && o.geometry.attributes.position; if (!pos) return; tris += (o.geometry.index ? o.geometry.index.count : pos.count) / 3; } }); } catch (e) { return 0; } return Math.round(tris); }'
++ 'function validateGeometry(group) { try { group.traverse((o) => { if ((o.isMesh || o.isLine || o.isPoints) && o.geometry) { const pos = o.geometry.attributes && o.geometry.attributes.position; if (!pos) throw new Error("bad-geometry"); const arr = __safePositionArray(pos); if (!arr) throw new Error("bad-geometry"); for (let i = 0; i < arr.length; i++) { if (!Number.isFinite(arr[i])) throw new Error("bad-geometry"); } } }); const box = new THREE.Box3().setFromObject(group); if (box.isEmpty()) throw new Error("bad-geometry"); const size = new THREE.Vector3(); box.getSize(size); const center = new THREE.Vector3(); box.getCenter(center); if (!Number.isFinite(size.x) || !Number.isFinite(size.y) || !Number.isFinite(size.z) || !Number.isFinite(center.x) || !Number.isFinite(center.y) || !Number.isFinite(center.z)) throw new Error("bad-geometry"); if (Math.max(size.x, size.y, size.z) <= 0) throw new Error("bad-geometry"); } catch (e) { if (e && e.message === "bad-geometry") throw e; throw new Error("bad-geometry"); } }'
++ 'function hasValidModel() { if (!currentGroup) return false; try { validateGeometry(currentGroup); return true; } catch (e) { return false; } }'
++ '/* G4 instance traps: a getter/setter on a returned mesh, its position/scale, geometry, attributes, matrix, or material would fire inside viewer-trusted code (count/validate/render/export) on every frame. three.js itself uses accessors only on Euler x/y/z/order, Quaternion x/y/z/w, and MeshPhysicalMaterial reflectivity (syncs ior), so those are allowed; any other accessor rejects the build. */'
++ '/* S6: read geometry arrays defensively. A replaced position.array whose index is a throwing getter fired inside viewer validateGeometry, past __hasAccessors (which only checked the attribute OWN descriptors, never the VALUE of array). __attrArrayHasAccessors flags an accessor anywhere on the array value (real TypedArrays have no own accessors on their indices, so they pass); __safePositionArray reads the array only through its own data descriptors, or returns null for anything foreign/throwing. */'
++ 'function __attrArrayHasAccessors(__attr) { if (!__attr || typeof __attr !== "object") return false; let __d = null; try { __d = Object.getOwnPropertyDescriptor(__attr, "array"); } catch (e) { return true; } if (!__d) return true; if (__d.get || __d.set) return true; const __v = __d.value; if (!__v || typeof __v !== "object") return false; try { if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(__v)) return false; } catch (e) {} let __descs = null; try { __descs = Object.getOwnPropertyDescriptors(__v); } catch (e) { return true; } for (const __k of Object.keys(__descs)) { const __dd = __descs[__k]; if (__dd && (__dd.get || __dd.set)) return true; } return false; }'
++ 'function __safePositionArray(__pos) { if (!__pos || typeof __pos !== "object") return null; let __d = null; try { __d = Object.getOwnPropertyDescriptor(__pos, "array"); } catch (e) { return null; } if (!__d || __d.get || __d.set) return null; const __arr = __d.value; if (!__arr || typeof __arr !== "object") return null; try { if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(__arr)) return __arr; } catch (e) { return null; } let __descs = null; try { __descs = Object.getOwnPropertyDescriptors(__arr); } catch (e) { return null; } for (const __k of Object.keys(__descs)) { const __dd = __descs[__k]; if (__dd && (__dd.get || __dd.set)) return null; } const __ld = __descs["length"]; if (!__ld || __ld.get || __ld.set || typeof __ld.value !== "number" || !Number.isInteger(__ld.value) || __ld.value < 0 || __ld.value > 100000000) return null; const __n = __ld.value; const __out = new Array(__n); for (let i = 0; i < __n; i++) { const __dd = __descs[String(i)]; __out[i] = (__dd && !__dd.get && !__dd.set) ? __dd.value : 0; } return __out; }'
++ 'function __hasAccessors(group) { let bad = false; const seen = new WeakSet(); const checkObj = (o, allow) => { if (bad || !o || typeof o !== "object" || seen.has(o)) return; seen.add(o); let descs; try { descs = Object.getOwnPropertyDescriptors(o); } catch (e) { return; } for (const k of Object.keys(descs)) { if (allow && allow.indexOf(k) !== -1) continue; const d = descs[k]; if (d && (d.get || d.set)) { bad = true; return; } } }; const checkDeep = (o, allow) => { checkObj(o, allow); if (bad) return; let descs; try { descs = Object.getOwnPropertyDescriptors(o); } catch (e) { return; } for (const k of Object.keys(descs)) { const v = descs[k] && descs[k].value; if (v && typeof v === "object") checkObj(v); if (bad) return; } }; try { group.traverse((o) => { if (bad) return; checkObj(o); if (o.position) checkObj(o.position); if (o.scale) checkObj(o.scale); if (o.rotation) checkObj(o.rotation, ["x", "y", "z", "order"]); if (o.quaternion) checkObj(o.quaternion, ["x", "y", "z", "w"]); if (o.matrix) checkObj(o.matrix); if (o.matrixWorld) checkObj(o.matrixWorld); if (o.geometry) { checkObj(o.geometry); const attrs = o.geometry.attributes; if (attrs) { checkObj(attrs); if (!bad) { let __vals = null; try { __vals = Object.values(attrs); } catch (e) { bad = true; } if (__vals) for (const a of __vals) { checkObj(a); if (!bad && __attrArrayHasAccessors(a)) bad = true; } } } if (o.geometry.index) { checkObj(o.geometry.index); if (!bad && __attrArrayHasAccessors(o.geometry.index)) bad = true; } if (o.geometry.boundingBox) { checkObj(o.geometry.boundingBox); if (o.geometry.boundingBox.min) checkObj(o.geometry.boundingBox.min); if (o.geometry.boundingBox.max) checkObj(o.geometry.boundingBox.max); } if (o.geometry.boundingSphere) { checkObj(o.geometry.boundingSphere); if (o.geometry.boundingSphere.center) checkObj(o.geometry.boundingSphere.center); } } const ms = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []); for (const m of ms) checkDeep(m, ["reflectivity"]); }); } catch (e) { return true; } return bad; }'
++ 'function bufToB64(buf) { const bytes = new Uint8Array(buf); let bin = ""; const CH = 0x8000; for (let i = 0; i < bytes.length; i += CH) { bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH)); } return btoa(bin); }'
++ 'function buildFromCode(code) {'
++ '/* D29 KNOWN-OPEN: a loop that dodges the denylist spellings still hangs this frame — no worker/time-sliced execution in this round. Mitigation (verified): the parent 10s build timeout shows a plain message and reloads the iframe. S7 (r2r2r): still known-open; no half-fix attempted. */'
++ '  hideErr();'
++ '  if (!__checkPrototypeIntegrity()) { __reportCorruption(); return; }'
++ '  const token = newToken();'
++ '  currentBuildToken = token;'
++ '  postToParent({ type: "build-started", token: token });'
++ '  if (!codeLooksSafe(code)) { showErr("That code did not run."); postToParent({ type: "error", message: "That code did not run.", token: token, hasModel: hasValidModel() }); currentBuildToken = null; return; }'
++ '  let group = null;'
++ '  let adopted = false;'
++ '  let old = null;'
++ '  let tris = 0;'
++ '  let failMsg = "That code did not run.";'
++ '  __allocRegistry = [];'
++ '  try {'
++ '    const fn = new RealFunction("THREE", "fetch", "XMLHttpRequest", "WebSocket", "EventSource", "Image", "Audio", "Worker", "SharedWorker", "Function", "setTimeout", "setInterval", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame", "queueMicrotask", "Promise", "__viewer", "history", "MutationObserver", "ResizeObserver", "IntersectionObserver", "MessageChannel", "BroadcastChannel", "crypto", "structuredClone", "Event", "CustomEvent", "atob", "btoa", "performance", "console", "URLSearchParams", "TextEncoder", "TextDecoder", "AbortController", "AbortSignal", "EventTarget", "Node", "Element", "HTMLElement", "Document", "Window", "Navigator", "Location", "History", "Screen", "Symbol", "FinalizationRegistry", "WeakRef", "WebAssembly", "Atomics", "Intl", "document", "window", "self", "globalThis", "parent", "top", "frames", "location", "navigator", "postMessage", "addEventListener", "removeEventListener", "dispatchEvent", "localStorage", "sessionStorage", "indexedDB", "caches", "open", "alert", "prompt", "confirm", "URL", "Blob", "File", "FileReader", "FormData", "Headers", "Request", "Response", "Reflect", "Proxy", "importScripts", "\\"use strict\\";\\n" + code + "\\nreturn buildModel(THREE);");'
++ '    group = fn(SAFE_THREE);'
++ '    if (!group || !group.isObject3D) { failMsg = "That code did not make a model."; throw new Error("no-model"); }'
++ '    if (__hasAccessors(group)) { failMsg = "That code did not make a model."; throw new Error("no-model"); }'
++ '    if (!__stripRenderCallbacks(group, false)) { failMsg = "That code did not make a model."; throw new Error("no-model"); }'
++ '    tris = countTriangles(group);'
++ '    if (tris <= 0) { failMsg = "That code did not make a model."; throw new Error("no-model"); }'
++ '    validateGeometry(group);'
++ '    const box = new THREE.Box3().setFromObject(group);'
++ '    const size = new THREE.Vector3(); box.getSize(size);'
++ '    const center = new THREE.Vector3(); box.getCenter(center);'
++ '    const max = Math.max(size.x, size.y, size.z) || 1;'
++ '    const s = 2 / max;'
++ '    group.scale.setScalar(s);'
++ '    group.position.set(-center.x * s, -center.y * s, -center.z * s);'
++ '    old = currentGroup;'
++ '    scene.add(group);'
++ '    currentGroup = group;'
++ '    adopted = true;'
++ '    if (old) { scene.remove(old); disposeObject(old); }'
++ '    camera.position.copy(homePos());'
++ '    lastHomePos.copy(camera.position);'
++ '    lastHomeDist = fitDistance();'
++ '    controls.target.copy(homeTarget());'
++ '    controls.autoRotate = camPreset === "front" && !selftestOn;'
++ '    controls.update();'
++ '  } catch (err) {'
++ '    try {'
++ '    if (err && (err.message === "no-model" || err.message === "bad-geometry")) failMsg = "That code did not make a model.";'
++ '    { const __toDispose = new Set(); const __collect = (__g) => { if (!__g || typeof __g.traverse !== "function") return; try { __g.traverse((__o) => { if ((__o.isMesh || __o.isLine || __o.isPoints) && __o.geometry) __toDispose.add(__o.geometry); const __ms = Array.isArray(__o.material) ? __o.material : (__o.material ? [__o.material] : []); for (const __m of __ms) { if (!__m) continue; for (const __k of Object.keys(__m)) { const __v = __m[__k]; if (__v && __v.isTexture) __toDispose.add(__v); } __toDispose.add(__m); } }); } catch (e) {} }; try { __collect(group); } catch (e) {} try { if (__allocRegistry) __allocRegistry.forEach((__inst) => __toDispose.add(__inst)); } catch (e) {} __toDispose.forEach((__inst) => { try { __inst.dispose(); } catch (e) {} }); }'
++ '    if (group && adopted) { try { scene.remove(group); } catch (e) {} currentGroup = old; if (old) { try { scene.add(old); } catch (e) {} } }'
++ '    showErr(failMsg);'
++ '    try { __restorePrototypes(); } catch (e) {}'
++ '    postToParent({ type: "error", message: failMsg, token: token, hasModel: hasValidModel() });'
++ '    if (!__checkPrototypeIntegrity()) __reportCorruption();'
++ '    } finally { __allocRegistry = null; currentBuildToken = null; }'
++ '    return;'
++ '  }'
++ '  if (__allocRegistry) { const __adopted = new Set(); group.traverse((o) => { if (o.geometry) __adopted.add(o.geometry); const __ms = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []); __ms.forEach((m) => __adopted.add(m)); }); __allocRegistry.forEach((__inst) => { if (!__adopted.has(__inst)) { try { __inst.dispose(); } catch (e) {} } }); __allocRegistry = null; }'
++ '  try { __restorePrototypes(); } catch (e) {}'
++ '  postToParent({ type: "built", triangles: tris, token: token });'
++ '  currentBuildToken = null;'
++ '  if (!__checkPrototypeIntegrity()) __reportCorruption();'
++ '  if (selftestOn && !selftestDone) { selftestDone = true; setTimeout(runSelfTest, 300); }'
++ '}'
++ '/*__TRACE_BUILDER__*/\n'
++ 'function buildFromTrace(trace) {\n'
++ '  hideErr();\n'
++ '  const token = newToken();\n'
++ '  currentBuildToken = token;\n'
++ '  postToParent({ type: "build-started", token: token });\n'
++ '  let group = null;\n'
++ '  let adopted = false;\n'
++ '  let old = null;\n'
++ '  let tris = 0;\n'
++ '  let failMsg = "That sketch did not trace.";\n'
++ '  __allocRegistry = [];\n'
++ '  try {\n'
++ '    if (!trace || !trace.parts || !trace.parts.length) throw new Error("no-model");\n'
++ '    group = buildTracedGroup(SAFE_THREE, trace);\n'
++ '    if (!group || !group.isObject3D) { failMsg = "That sketch did not trace."; throw new Error("no-model"); }\n'
++ '    if (__hasAccessors(group)) { failMsg = "That sketch did not trace."; throw new Error("no-model"); }\n'
++ '    tris = countTriangles(group);\n'
++ '    if (tris <= 0) { failMsg = "That sketch did not trace."; throw new Error("no-model"); }\n'
++ '    validateGeometry(group);\n'
++ '    const box = new THREE.Box3().setFromObject(group);\n'
++ '    const size = new THREE.Vector3(); box.getSize(size);\n'
++ '    const center = new THREE.Vector3(); box.getCenter(center);\n'
++ '    const max = Math.max(size.x, size.y, size.z) || 1;\n'
++ '    const s = 2 / max;\n'
++ '    group.scale.setScalar(s);\n'
++ '    group.position.set(-center.x * s, -center.y * s, -center.z * s);\n'
++ '    old = currentGroup;\n'
++ '    scene.add(group);\n'
++ '    currentGroup = group;\n'
++ '    adopted = true;\n'
++ '    if (old) { scene.remove(old); disposeObject(old); }\n'
++ '    camera.position.copy(homePos());\n'
++ '    lastHomePos.copy(camera.position);\n'
++ '    lastHomeDist = fitDistance();\n'
++ '    controls.target.copy(homeTarget());\n'
++ '    controls.autoRotate = camPreset === "front" && !selftestOn;\n'
++ '    controls.update();\n'
++ '  } catch (err) {\n'
++ '    try {\n'
++ '    if (err && (err.message === "no-model" || err.message === "bad-geometry")) failMsg = "That sketch did not trace.";\n'
++ '    { const __toDispose = new Set(); const __collect = (__g) => { if (!__g || typeof __g.traverse !== "function") return; try { __g.traverse((__o) => { if ((__o.isMesh || __o.isLine || __o.isPoints) && __o.geometry) __toDispose.add(__o.geometry); const __ms = Array.isArray(__o.material) ? __o.material : (__o.material ? [__o.material] : []); for (const __m of __ms) { if (!__m) continue; for (const __k of Object.keys(__m)) { const __v = __m[__k]; if (__v && __v.isTexture) __toDispose.add(__v); } __toDispose.add(__m); } }); } catch (e) {} }; try { __collect(group); } catch (e) {} try { if (__allocRegistry) __allocRegistry.forEach((__inst) => __toDispose.add(__inst)); } catch (e) {} __toDispose.forEach((__inst) => { try { __inst.dispose(); } catch (e) {} }); }\n'
++ '    if (group && adopted) { try { scene.remove(group); } catch (e) {} currentGroup = old; if (old) { try { scene.add(old); } catch (e) {} } }\n'
++ '    showErr(failMsg);\n'
++ '    try { __restorePrototypes(); } catch (e) {}\n'
++ '    postToParent({ type: "error", message: failMsg, token: token, hasModel: hasValidModel() });\n'
++ '    } finally { __allocRegistry = null; currentBuildToken = null; }\n'
++ '    return;\n'
++ '  }\n'
++ '  if (__allocRegistry) { const __adopted = new Set(); group.traverse((o) => { if (o.geometry) __adopted.add(o.geometry); const __ms = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []); __ms.forEach((m) => __adopted.add(m)); }); __allocRegistry.forEach((__inst) => { if (!__adopted.has(__inst)) { try { __inst.dispose(); } catch (e) {} } }); __allocRegistry = null; }\n'
++ '  try { __restorePrototypes(); } catch (e) {}\n'
++ '  postToParent({ type: "built", triangles: tris, token: token });\n'
++ '  currentBuildToken = null;\n'
++ '  if (selftestOn && !selftestDone) { selftestDone = true; setTimeout(runSelfTest, 300); }\n'
++ '}\n'
++ 'function exportModel(format) {'
++ '  if (!__checkPrototypeIntegrity()) { __reportCorruption(); return; }'
++ '  try { __stripRenderCallbacks(currentGroup, true); } catch (e) {}'
++ '  const token = newToken();'
++ '  currentExportToken = token;'
++ '  postToParent({ type: "export-started", token: token, format: format });'
++ '  if (!currentGroup) { postToParent({ type: "error", message: "No model to download yet.", token: token, hasModel: false }); currentExportToken = null; return; }'
++ '  try { validateGeometry(currentGroup); } catch (e) { postToParent({ type: "error", message: "That model is damaged and cannot be downloaded.", token: token, hasModel: false }); currentExportToken = null; return; }'
++ '  try {'
++ '    if (format === "glb") {'
++ '      new GLTFExporter().parse(currentGroup, (buf) => { postToParent({ type: "file", format: "glb", data: bufToB64(buf), encoding: "base64", token: token }); currentExportToken = null; }, (err) => { postToParent({ type: "error", message: "The GLB file did not build.", token: token, hasModel: hasValidModel() }); currentExportToken = null; }, { binary: true });'
++ '    } else if (format === "obj") {'
++ '      const text = new OBJExporter().parse(currentGroup);'
++ '      postToParent({ type: "file", format: "obj", data: text, encoding: "text", token: token });'
++ '      currentExportToken = null;'
++ '    } else if (format === "stl") {'
++ '      const text = new STLExporter().parse(currentGroup, { binary: false });'
++ '      postToParent({ type: "file", format: "stl", data: text, encoding: "text", token: token });'
++ '      currentExportToken = null;'
++ '    } else {'
++ '      postToParent({ type: "error", message: "That file did not build.", token: token, hasModel: hasValidModel() });'
++ '      currentExportToken = null;'
++ '    }'
++ '  } catch (err) {'
++ '    postToParent({ type: "error", message: "That file did not build.", token: token, hasModel: hasValidModel() });'
++ '    currentExportToken = null;'
++ '  }'
++ '}'
++ 'window.addEventListener("message", (ev) => { if (ev.source !== PARENT) return; const d = ev.data || {}; if (!d || typeof d !== "object") return; if (d.type === "build") buildFromCode(d.code); if (d.type === "trace") buildFromTrace(d.trace); if (d.type === "export") exportModel(d.format); if (d.type === "init") applyInit(d); });'
++ 'function applyInit(d) {'
++ '  if (d.cam === "front" || d.cam === "side" || d.cam === "top" || d.cam === "back") { camPreset = d.cam; camera.position.copy(homePos()); lastHomePos.copy(camera.position); lastHomeDist = fitDistance(); controls.target.copy(homeTarget()); controls.autoRotate = camPreset === "front" && !selftestOn; controls.update(); }'
++ '  if (d.ui === "0") { document.getElementById("controls").style.display = "none"; }'
++ '  if (d.selftest) { selftestOn = true; controls.autoRotate = false; setTimeout(() => { if (!selftestDone) { selftestDone = true; runSelfTest(); } }, 5000); }'
++ '}'
++ 'const sleep = (ms) => new Promise(r => setTimeout(r, ms));'
++ 'function azim() { const o = camera.position.clone().sub(controls.target); return Math.atan2(o.x, o.z); }'
++ 'function dist() { return camera.position.distanceTo(controls.target); }'
++ 'async function runSelfTest() {'
++ '  const out = document.getElementById("selftest");'
++ '  out.style.display = "block";'
++ '  const R = {};'
++ '  try {'
++ '    controls.autoRotate = false; controls.update(); await sleep(250);'
++ '    const a0 = azim();'
++ '    const cv = renderer.domElement;'
++ '    const rect = cv.getBoundingClientRect();'
++ '    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;'
++ '    const opts = (x, y) => ({ bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: "touch", isPrimary: true });'
++ '    cv.dispatchEvent(new PointerEvent("pointerdown", opts(cx, cy)));'
++ '    for (let i = 1; i <= 10; i++) { cv.dispatchEvent(new PointerEvent("pointermove", opts(cx + i * 12, cy))); await sleep(40); }'
++ '    cv.dispatchEvent(new PointerEvent("pointerup", opts(cx + 120, cy)));'
++ '    await sleep(600); controls.update();'
++ '    const a1 = azim();'
++ '    R.T1_drag_rotates = { pass: Math.abs(a1 - a0) > 0.1, before: +a0.toFixed(3), after: +a1.toFixed(3) };'
++ '    const d0 = dist();'
++ '    document.getElementById("btn-zoom-in").click(); await sleep(200);'
++ '    const d1 = dist();'
++ '    document.getElementById("btn-zoom-out").click(); await sleep(200);'
++ '    const d2 = dist();'
++ '    R.T2_zoom_buttons = { pass: d1 < d0 - 0.05 && d2 > d1 + 0.05, d0: +d0.toFixed(2), d_in: +d1.toFixed(2), d_out: +d2.toFixed(2) };'
++ '    const b0 = azim();'
++ '    document.getElementById("btn-left").click(); await sleep(200);'
++ '    const b1 = azim();'
++ '    document.getElementById("btn-right").click(); await sleep(200);'
++ '    const b2 = azim();'
++ '    R.T3_rotate_buttons = { pass: Math.abs(b1 - b0) > 0.2 && Math.abs(b2 - b0) < 0.15, b0: +b0.toFixed(2), b_left: +b1.toFixed(2), b_right: +b2.toFixed(2) };'
++ '    dolly(0.6); rotateBy(1.2); await sleep(200);'
++ '    document.getElementById("btn-reset").click(); await sleep(200);'
++ '    const rp = camera.position.distanceTo(homePos());'
++ '    R.T4_reset = { pass: rp < 0.05, err: +rp.toFixed(3) };'
++ '    R.T5_touch_config = { pass: controls.touches.ONE === THREE.TOUCH.ROTATE && controls.touches.TWO === THREE.TOUCH.DOLLY_PAN && cv.style.touchAction === "none", one: controls.touches.ONE, two: controls.touches.TWO, cssTouchAction: cv.style.touchAction };'
++ '    const names = []; if (currentGroup) currentGroup.traverse(o => { if (o.isMesh) names.push(o.name || o.type); });'
++ '    R.T6_meshes = { pass: names.length > 0, meshes: names };'
++ '    R.T7_renderer = { pass: !!renderer.getContext(), calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };'
++ '    R.summary = { passed: Object.values(R).filter(v => v.pass).length, total: Object.keys(R).length };'
++ '  } catch (e) { R.error = String(e && e.message || e); }'
++ '  const json = JSON.stringify(R, null, 1);'
++ '  out.textContent = json;'
++ '  window.__selftest = R;'
++ '  document.title = "SELFTEST " + (R.summary ? R.summary.passed + "/" + R.summary.total : "ERR");'
++ '}'
++ 'function animate() { requestAnimationFrame(animate); controls.update(); try { __stripRenderCallbacks(currentGroup, true); __stripOne(scene, "onBeforeRender", __OBJ_ONBEFORE); __stripOne(scene, "onAfterRender", __OBJ_ONAFTER); } catch (e) {} renderer.render(scene, camera); }'
++ 'animate();'
++ '/* G1: no window.__viewer in the shipped viewer — the viewer leaves no handle from model code to the window, document, camera, or renderer. */'
++ 'window.__ready = true;'
++ 'postToParent({ type: "ready" });'
++ '<\/script></body></html>';
+
+// ---------- page logic ----------
+const VIEWER_HTML_V2 = (function () {
+  try {
+    if (!window.TraceSketch || typeof TraceSketch.buildTracedGroup !== 'function') return VIEWER_HTML;
+    return VIEWER_HTML.replace('/*__TRACE_BUILDER__*/', 'const buildTracedGroup = ' + TraceSketch.buildTracedGroup.toString() + ';\n');
+  } catch (err) { return VIEWER_HTML; }
+})();
+const fileInput = document.getElementById('fileInput');
+const camInput = document.getElementById('camInput');
+const thumb = document.getElementById('thumb');
+const makeBtn = document.getElementById('makeBtn');
+const statusEl = document.getElementById('status');
+const viewerWrap = document.getElementById('viewerWrap');
+let viewer = document.getElementById('viewer');
+const objNameEl = document.getElementById('objName');
+const dlGlb = document.getElementById('dlGlb');
+const dlObj = document.getElementById('dlObj');
+const dlStl = document.getElementById('dlStl');
+const newBtn = document.getElementById('newBtn');
+
+const params = new URLSearchParams(location.search);
+const MOCK = params.get('mock'); // smiley | cup — testing only, skips the API
+// Viewer helpers, forwarded to the iframe (a srcdoc iframe cannot read the
+// parent URL itself): ?cam=front|side|top|back, ?selftest=1, ?ui=0.
+const CAM_PRESET = params.get('cam') || 'front';
+const SELFTEST = params.get('selftest') === '1';
+const UI_OFF = params.get('ui') === '0';
+const READY_TIMEOUT_MS = 10000;
+const BUILD_TIMEOUT_MS = 10000;
+let imageDataUrl = null;
+let pickedFileName = 'sketch-3d-model';
+let viewerReady = false;
+let viewerLoaded = false;
+let pendingCode = null;
+let pendingTrace = null;
+let pendingBuildCode = null;
+let lastCorruptReloadAt = 0;
+let currentName = 'model';
+let readyTimer = null;
+let buildTimer = null;
+let mockTimerId = null;
+let buildGen = 0;
+let viewerNeedsReload = false;
+let awaitingBuild = false;
+let pendingExport = null;
+let initSent = false;
+let currentBuildToken = null;
+let currentExportToken = null;
+let hasGoodModel = false;
+let lastGoodName = 'model';
+
+function setStatus(msg, isErr) {
+  statusEl.textContent = msg || '';
+  statusEl.className = isErr ? 'status err' : 'status';
+}
+
+function fileNameFor(fmt) {
+  const base = currentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'sketch-3d-model';
+  return base + '.' + fmt;
+}
+
+// ---------- upload flow: pick generation, size guard, integrity checks ----------
+// One counter for every pick (and for "New sketch"): only the newest generation
+// may write the sketch state, so a slow pick can never overwrite a newer one
+// and a late downscale can never undo a reset.
+let pickGen = 0;
+// Files over this size are refused before any reading or decoding.
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const IS_MOCK = MOCK === 'smiley' || MOCK === 'cup';
+
+// Clear every trace of the armed sketch. The error message stays on screen;
+// the old sketch must not.
+function clearSketchState() {
+  imageDataUrl = null;
+  thumb.src = '';
+  thumb.style.display = 'none';
+  makeBtn.disabled = !IS_MOCK; // demo mode needs no sketch, so its button stays live
+}
+
+// Report a failed pick, but only if it is still the newest one — a stale
+// failure must never wipe out a newer pick that already succeeded.
+function failPick(gen, msg) {
+  if (gen !== pickGen) return;
+  clearSketchState();
+  setStatus(msg, true);
+}
+
+// True when the downscaled canvas holds real pixel content. A decoded image
+// that is one flat colour (a truncated file with no pixel data, a blank
+// decode) has nothing to model. Tiny images are exempt: a valid 1x1 PNG
+// has a single pixel and no variance to measure. If the pixel read itself
+// is unavailable, the check is skipped rather than blocking a good image.
+function hasRealPixels(ctx, w, h) {
+  if (w * h < 100) return true;
+  try {
+    if (typeof ctx.getImageData !== 'function') return true;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const pxStep = Math.max(1, Math.floor((w * h) / 400)) * 4;
+    let lo = 255, hi = 0;
+    for (let i = 0; i < data.length; i += pxStep) {
+      for (let ch = 0; ch < 3; ch++) {
+        const v = data[i + ch];
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    return (hi - lo) > 4;
+  } catch (err) {
+    return true;
+  }
+}
+
+// True when the raw file bytes look like a complete image. Only files that
+// actually start with a PNG signature or a JPEG start marker are checked:
+// a real PNG must end with its 12-byte IEND chunk, a real JPEG with the
+// FFD9 end marker. Anything else (GIF, WebP, or undecodable bytes) is left
+// to the decoder. A truncated PNG that a lenient decoder would still partly
+// draw is caught here, decoder-independent.
+function fileBytesLookComplete(dataUrl) {
+  const comma = dataUrl.indexOf(',');
+  if (comma === -1) return true;
+  const b64 = dataUrl.slice(comma + 1);
+  let headBytes = '', tailBytes = '';
+  try {
+    headBytes = atob(b64.slice(0, 12));
+    tailBytes = atob(b64.slice(-24)); // decodes to 16-18 bytes, covers both trailers
+  } catch (err) {
+    return true; // not decodable base64; leave it to the image decoder
+  }
+  if (headBytes.slice(0, 8) === '\x89PNG\r\n\x1a\n') {
+    if (tailBytes.length < 12) return true;
+    return tailBytes.slice(-12) === '\x00\x00\x00\x00IEND\xaeB`\x82';
+  }
+  if (headBytes.charCodeAt(0) === 0xFF && headBytes.charCodeAt(1) === 0xD8) {
+    if (tailBytes.length < 2) return true;
+    return tailBytes.slice(-2) === '\xff\xd9';
+  }
+  return true;
+}
+
+// ---------- PNG chunk-CRC validation (fix 2: corrupt-middle PNG) ----------
+// A PNG with a valid header and an intact IEND trailer but corrupted IDAT
+// data sails through the head/tail check above and through hasRealPixels
+// (a garbled partial decode is not flat), so a lenient decoder arms a
+// half-black thumbnail as "Sketch ready". PNG stores a CRC-32 after every
+// chunk, over its type + data, so any flipped byte anywhere in the file
+// breaks its chunk's CRC. Validating those CRCs catches mid-stream
+// corruption decoder-independently, before any decode is attempted.
+// CRC-32 (IEEE, polynomial 0xEDB88320). Table built once, lazily.
+let CRC_TABLE = null;
+function crc32(bytes, start, end) {
+  if (!CRC_TABLE) {
+    CRC_TABLE = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      CRC_TABLE[n] = c;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = start; i < end; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Decode a data: URL's base64 payload into bytes, or null when it is not
+// decodable base64. Decoded in slices (each a multiple of 4 chars, so
+// atob never sees a split quantum) to keep a 15 MiB file cheap.
+function dataUrlToBytes(dataUrl) {
+  const comma = dataUrl.indexOf(',');
+  if (comma === -1) return null;
+  const b64 = dataUrl.slice(comma + 1).replace(/\s/g, '');
+  if (!b64 || b64.length % 4 !== 0) return null;
+  try {
+    let len = Math.floor(b64.length * 3 / 4);
+    if (b64.charAt(b64.length - 1) === '=') len--;
+    if (b64.charAt(b64.length - 2) === '=') len--;
+    const bytes = new Uint8Array(len);
+    let out = 0;
+    for (let i = 0; i < b64.length; i += 0x8000) {
+      const bin = atob(b64.slice(i, i + 0x8000));
+      for (let j = 0; j < bin.length; j++) bytes[out++] = bin.charCodeAt(j);
+    }
+    return bytes;
+  } catch (err) {
+    return null;
+  }
+}
+
+// True when a PNG file's chunk structure is intact: the first chunk is a
+// 13-byte IHDR, every chunk's stored CRC matches CRC-32 over its type +
+// data, no chunk overruns the file, at least one IDAT is present, and the
+// file ends exactly at IEND. A single flipped IDAT byte breaks its CRC.
+// Non-PNG files and undecodable base64 return true and are left to the
+// decoder and the other checks, so stub harnesses feeding synthetic data
+// URLs keep working.
+function pngChunksValid(dataUrl) {
+  const bytes = dataUrlToBytes(dataUrl);
+  if (!bytes || bytes.length < 8) return true;
+  if (!(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+        bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A)) return true;
+  let off = 8;
+  let seenIdat = false;
+  while (off + 8 <= bytes.length) {
+    const len = ((bytes[off] << 24) | (bytes[off + 1] << 16) | (bytes[off + 2] << 8) | bytes[off + 3]) >>> 0;
+    if (off + 12 + len > bytes.length) return false; // chunk overruns the file
+    const t0 = bytes[off + 4], t1 = bytes[off + 5], t2 = bytes[off + 6], t3 = bytes[off + 7];
+    const isLetter = (b) => (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A);
+    if (!isLetter(t0) || !isLetter(t1) || !isLetter(t2) || !isLetter(t3)) return false;
+    const type = String.fromCharCode(t0, t1, t2, t3);
+    if (off === 8 && (type !== 'IHDR' || len !== 13)) return false;
+    if (type === 'IDAT') seenIdat = true;
+    const stored = ((bytes[off + 8 + len] << 24) | (bytes[off + 9 + len] << 16) | (bytes[off + 10 + len] << 8) | bytes[off + 11 + len]) >>> 0;
+    if (crc32(bytes, off + 4, off + 8 + len) !== stored) return false;
+    off += 12 + len;
+    if (type === 'IEND') {
+      if (len !== 0) return false;
+      return seenIdat && off === bytes.length; // IEND must be the last chunk
+    }
+  }
+  return false; // ran out of bytes without IEND
+}
+
+function downscale(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        if (!img.naturalWidth || !img.naturalHeight) throw new Error('bad image');
+        const max = 1024;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        if (!ctx) throw new Error('bad image');
+        // JPEG has no alpha: fill white first, or a transparent PNG
+        // becomes dark strokes on a black background.
+        if (typeof ctx.fillRect === 'function') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        if (!hasRealPixels(ctx, w, h)) throw new Error('blank image');
+        resolve(c.toDataURL('image/jpeg', 0.85));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => reject(new Error('bad image'));
+    img.src = dataUrl;
+  });
+}
+
+async function onFilePicked(file) {
+  if (!file) return;
+  const gen = ++pickGen;
+  // Reset both inputs now, so picking the same file again fires a new
+  // change event (a retry after a failed pick, or a re-pick of the same photo).
+  fileInput.value = '';
+  camInput.value = '';
+  // Make stays disabled while this pick loads; only a success re-enables it.
+  makeBtn.disabled = true;
+  if (file.size > MAX_FILE_BYTES) {
+    failPick(gen, 'That photo is too big. Try a smaller one.');
+    return;
+  }
+  setStatus('Reading your sketch…');
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      if (gen !== pickGen) return; // a newer pick (or New sketch) took over
+      if (!fileBytesLookComplete(reader.result)) {
+        failPick(gen, 'That photo did not open. Try another one.');
+        return;
+      }
+      if (!pngChunksValid(reader.result)) {
+        failPick(gen, 'That photo did not open. Try another one.');
+        return;
+      }
+      const url = await downscale(reader.result);
+      if (gen !== pickGen) return; // finished late; a newer pick owns the state now
+      pickedFileName = (file.name || '').replace(/\.[^.]+$/, '') || 'sketch-3d-model';
+      imageDataUrl = url;
+      thumb.src = url;
+      thumb.style.display = 'block';
+      makeBtn.disabled = false;
+      setStatus('Sketch ready. Tap "Make 3D model".');
+    } catch (err) {
+      failPick(gen, 'That photo did not open. Try another one.');
+    }
+  };
+  reader.onerror = () => failPick(gen, 'That photo did not open. Try another one.');
+  reader.readAsDataURL(file);
+}
+
+fileInput.addEventListener('change', () => onFilePicked(fileInput.files[0]));
+camInput.addEventListener('change', () => onFilePicked(camInput.files[0]));
+
+
+// Coerce any error payload to plain words. A non-string payload (e.g. an
+// object from a spoofed message) must never render as "[object Object]".
+function toPlainMessage(m) {
+  if (typeof m === 'string') return m || 'Something went wrong.';
+  if (m == null) return 'Something went wrong.';
+  if (m instanceof Error) return m.message || 'Something went wrong.';
+  try {
+    const s = JSON.stringify(m);
+    if (s && s !== '{}' && s !== '[]') return s;
+  } catch (err) { /* fall through */ }
+  try {
+    const s = String(m);
+    if (s && s !== '[object Object]') return s;
+  } catch (err) { /* fall through */ }
+  return 'Something went wrong.';
+}
+
+function armReadyTimer() {
+  clearTimeout(readyTimer);
+  readyTimer = setTimeout(() => {
+    readyTimer = null;
+    if (!viewerReady) {
+      // The viewer never answered. The next Make reloads the iframe.
+      viewerNeedsReload = true;
+      makeBtn.disabled = false;
+      // Never show this on a reset page: the viewer is hidden after
+      // "New sketch", so a late timer must stay silent (old D4).
+      if (viewerWrap.style.display !== 'none') {
+        setStatus('The 3D viewer did not load. Check your internet and try again.', true);
+      }
+    }
+  }, READY_TIMEOUT_MS);
+}
+
+// Discard the current iframe and load a fresh one (a hung viewer only
+// recovers this way — its thread can never be interrupted from outside).
+function reloadViewerIframe() {
+  clearTimeout(readyTimer);
+  clearTimeout(buildTimer);
+  readyTimer = null;
+  buildTimer = null;
+  viewerReady = false;
+  viewerLoaded = false;
+  pendingCode = null;
+  pendingTrace = null;
+  awaitingBuild = false;
+  pendingExport = null;
+  initSent = false;
+  currentBuildToken = null;
+  currentExportToken = null;
+  hasGoodModel = false;
+  lastGoodName = 'model';
+  viewerNeedsReload = false;
+  const fresh = viewer.cloneNode(false);
+  viewer.replaceWith(fresh);
+  viewer = fresh;
+  viewer.srcdoc = VIEWER_HTML_V2;
+  viewerLoaded = true;
+  armReadyTimer();
+}
+
+function loadViewer() {
+  // A failed or hung viewer is reloaded, never reused.
+  if (viewerNeedsReload && viewerLoaded) { reloadViewerIframe(); return; }
+  if (!viewerLoaded) {
+    viewer.srcdoc = VIEWER_HTML_V2;
+    viewerLoaded = true;
+  }
+  // The ready timer is re-armed on EVERY (re)build, not just the first.
+  if (!viewerReady) armReadyTimer();
+}
+
+// Post a build and arm the build timeout: if neither 'built' nor 'error'
+// comes back, the viewer is treated as hung.
+function onBuildTimeout() {
+  if (!awaitingBuild) return;
+  awaitingBuild = false;
+  pendingBuildCode = null;
+  pendingTrace = null;
+  viewerNeedsReload = true;
+  dlGlb.disabled = true;
+  dlObj.disabled = true;
+  dlStl.disabled = true;
+  objNameEl.textContent = '';
+  currentName = 'model';
+  currentBuildToken = null;
+  hasGoodModel = false;
+  lastGoodName = 'model';
+  setStatus('That model took too long. Try again.', true);
+  makeBtn.disabled = false;
+  // Reload the hung viewer now, so the next Make starts clean.
+  reloadViewerIframe();
+}
+function armBuildTimer() {
+  clearTimeout(buildTimer);
+  buildTimer = setTimeout(onBuildTimeout, BUILD_TIMEOUT_MS);
+}
+function postBuild(code) {
+  if (!viewer.contentWindow) return;
+  pendingBuildCode = code;
+  pendingExport = null;
+  currentBuildToken = null;
+  currentExportToken = null;
+  viewer.contentWindow.postMessage({ type: 'build', code }, '*');
+  awaitingBuild = true;
+  armBuildTimer();
+}
+
+function sendCodeToViewer(code, name) {
+  currentName = name || 'model';
+  objNameEl.textContent = currentName;
+  viewerWrap.style.display = 'block';
+  loadViewer();
+  pendingCode = code;
+  if (viewerReady) {
+    pendingCode = null;
+    postBuild(code);
+  }
+  try {
+    if (typeof viewerWrap.scrollIntoView === 'function') viewerWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) { /* scrolling is cosmetic; never strand the Make button */ }
+}
+
+window.addEventListener('message', (ev) => {
+  // Sender authentication: only the viewer iframe may drive this page.
+  // (Origin is NOT checked — the sandboxed srcdoc iframe legitimately
+  // posts with origin "null".)
+  if (!viewer || !viewer.contentWindow || ev.source !== viewer.contentWindow) return;
+  const d = ev.data || {};
+  if (!d || typeof d !== 'object') return;
+  if (d.type === 'viewer-corrupt') {
+    // The viewer found its shared prototypes damaged (a hostile build froze
+    // or re-parented one) and cannot build again in this iframe. Reload it
+    // for a fresh viewer; if a build was in flight, send it again once the
+    // fresh viewer is ready. A second corrupt report within 2s does not
+    // reload again (loop guard) — the message still shows.
+    const wasBuilding = awaitingBuild;
+    const nowMs = Date.now();
+    setStatus(toPlainMessage(d.message), true);
+    makeBtn.disabled = false;
+    if (nowMs - lastCorruptReloadAt > 2000) {
+      lastCorruptReloadAt = nowMs;
+      reloadViewerIframe();
+      if (wasBuilding && pendingBuildCode) pendingCode = pendingBuildCode;
+    }
+  }
+  if (d.type === 'ready') {
+    if (viewerReady) return;
+    viewerReady = true;
+    clearTimeout(readyTimer);
+    readyTimer = null;
+    if (!initSent) {
+      initSent = true;
+      viewer.contentWindow.postMessage({ type: 'init', cam: CAM_PRESET, selftest: SELFTEST, ui: UI_OFF ? '0' : '1' }, '*');
+    }
+    if (pendingCode) {
+      const code = pendingCode;
+      pendingCode = null;
+      postBuild(code);
+    }
+  }
+  // Build token (F2): the viewer generates one per build, announces it
+  // here, and echoes it in every outcome message. Model code inside the
+  // iframe can never read it — it only ever sees parent -> viewer
+  // messages — so a spoofed built/file without the current token is ignored.
+  if (d.type === 'build-started') {
+    if (!awaitingBuild) return;
+    if (typeof d.token !== 'string' || !d.token) return;
+    currentBuildToken = d.token;
+  }
+  if (d.type === 'export-started') {
+    if (!pendingExport || d.format !== pendingExport) return;
+    if (typeof d.token !== 'string' || !d.token) return;
+    currentExportToken = d.token;
+  }
+  if (d.type === 'built') {
+    if (!awaitingBuild) return;
+    // A built without the current build token is a spoof: ignore it.
+    // The real built is still coming.
+    if (typeof d.token !== 'string' || !d.token || d.token !== currentBuildToken) return;
+    clearTimeout(buildTimer);
+    buildTimer = null;
+    awaitingBuild = false;
+    currentBuildToken = null;
+    pendingBuildCode = null;
+    pendingTrace = null;
+    // A built with no triangle count (or zero) is not a model.
+    if (typeof d.triangles !== 'number' || d.triangles <= 0) {
+      dlGlb.disabled = true;
+      dlObj.disabled = true;
+      dlStl.disabled = true;
+      objNameEl.textContent = '';
+      currentName = 'model';
+      hasGoodModel = false;
+      lastGoodName = 'model';
+      setStatus('That code did not make a model.', true);
+      makeBtn.disabled = false;
+      return;
+    }
+    hasGoodModel = true;
+    lastGoodName = currentName;
+    setStatus('Done. Drag to spin it. Download it below.');
+    dlGlb.disabled = false;
+    dlObj.disabled = false;
+    dlStl.disabled = false;
+  }
+  if (d.type === 'error') {
+    // An error without a token matching the in-flight build or export is
+    // unauthenticated: ignore it.
+    const buildTok = typeof d.token === 'string' && !!d.token && d.token === currentBuildToken;
+    const expTok = typeof d.token === 'string' && !!d.token && d.token === currentExportToken;
+    if (!buildTok && !expTok) return;
+    const wasBuilding = awaitingBuild && buildTok;
+    clearTimeout(buildTimer);
+    buildTimer = null;
+    if (buildTok) {
+      awaitingBuild = false;
+      currentBuildToken = null;
+      pendingBuildCode = null;
+      pendingTrace = null;
+    }
+    if (expTok) {
+      pendingExport = null;
+      currentExportToken = null;
+    }
+    // A failed rebuild keeps the preserved good model downloadable (D-C):
+    // the viewer reports hasModel when it still holds one, and the parent
+    // restores that model's name so downloads keep the right filename.
+    if (d.hasModel === true && hasGoodModel) {
+      currentName = lastGoodName;
+      objNameEl.textContent = lastGoodName;
+      dlGlb.disabled = false;
+      dlObj.disabled = false;
+      dlStl.disabled = false;
+    } else {
+      dlGlb.disabled = true;
+      dlObj.disabled = true;
+      dlStl.disabled = true;
+      if (wasBuilding) {
+        objNameEl.textContent = '';
+        currentName = 'model';
+        hasGoodModel = false;
+        lastGoodName = 'model';
+      }
+    }
+    setStatus(toPlainMessage(d.message), true);
+    makeBtn.disabled = false;
+  }
+  if (d.type === 'file') {
+    // Only a file the user actually asked for, carrying the export token
+    // the viewer announced for this export, is downloaded.
+    if (!pendingExport || pendingExport !== d.format) return;
+    if (typeof d.token !== 'string' || !d.token || d.token !== currentExportToken) return;
+    pendingExport = null;
+    currentExportToken = null;
+    downloadFile(fileNameFor(d.format), d.data, d.encoding);
+    setStatus('Download started: ' + fileNameFor(d.format));
+  }
+});
+
+function downloadFile(name, data, encoding) {
+  let blob;
+  if (encoding === 'base64') {
+    const bin = atob(data);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    blob = new Blob([arr], { type: 'application/octet-stream' });
+  } else {
+    blob = new Blob([data], { type: 'text/plain' });
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+async function makeModel() {
+  const gen = ++buildGen;
+  makeBtn.disabled = true;
+  dlGlb.disabled = true;
+  dlObj.disabled = true;
+  dlStl.disabled = true;
+  if (MOCK === 'smiley' || MOCK === 'cup') {
+    setStatus('Making the model… (demo mode)');
+    clearTimeout(mockTimerId);
+    mockTimerId = setTimeout(() => {
+      mockTimerId = null;
+      if (gen !== buildGen) return; // "New sketch" cancelled this build
+      const code = MOCK === 'cup' ? MOCK_CUP : MOCK_SMILEY;
+      const name = MOCK === 'cup' ? 'cup (demo)' : 'smiley face (demo)';
+      sendCodeToViewer(code, name);
+      makeBtn.disabled = false;
+    }, 600);
+    return;
+  }
+  if (!imageDataUrl) {
+    setStatus('Pick a sketch photo first.', true);
+    makeBtn.disabled = false;
+    return;
+  }
+  // V3: the sketch goes to the AI (POST /api/generate.js), which returns
+  // buildModel code for a COMPLETE 3D object — front, back and sides.
+  // The trace path is gone: it is what Huzaifa rejected (flat extrusion,
+  // no back). The viewer still builds from code via sendCodeToViewer.
+  setStatus('Asking the AI to build your model…');
+  let resp;
+  try {
+    const ctrl = new AbortController();
+    // 120s: a real live call took 87s end-to-end and still succeeded, so
+    // a shorter abort would kill calls the server would have completed.
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    try {
+      resp = await fetch('/api/generate.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageDataUrl }),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (err) {
+    if (gen !== buildGen) return; // cancelled by "New sketch"
+    setStatus('The model took too long. Try again.', true);
+    makeBtn.disabled = false;
+    return;
+  }
+  if (gen !== buildGen) return; // cancelled by "New sketch"
+  let data = null;
+  try { data = await resp.json(); } catch (err) { /* non-JSON error page */ }
+  if (!resp.ok) {
+    // The server's error is already plain words; a rate-limit reply also
+    // carries rateLimitKind ('minute' | 'day'), but the browser does not
+    // read it — the plain-words message already says how long to wait.
+    // V3 R3 (J3 D1): a failed check also carries checkReason (which part
+    // floated, and by how much) — show it after the message so a floating
+    // mouth and full-sphere eyes no longer look identical.
+    const msg = (data && typeof data.error === 'string' && data.error) || 'Something went wrong. Try again.';
+    const why = (data && typeof data.checkReason === 'string' && data.checkReason) || '';
+    setStatus(why ? msg + ' ' + why : msg, true);
+    makeBtn.disabled = false;
+    return;
+  }
+  if (!data || typeof data.code !== 'string' || !data.code) {
+    setStatus('The model sent back code I could not use. Try again.', true);
+    makeBtn.disabled = false;
+    return;
+  }
+  sendCodeToViewer(data.code, data.objectName || pickedFileName);
+  if (gen === buildGen) makeBtn.disabled = false;
+}
+
+makeBtn.addEventListener('click', makeModel);
+function requestExport(format) {
+  if (!viewer.contentWindow) return;
+  pendingExport = format;
+  currentExportToken = null;
+  viewer.contentWindow.postMessage({ type: 'export', format }, '*');
+}
+dlGlb.addEventListener('click', () => requestExport('glb'));
+dlObj.addEventListener('click', () => requestExport('obj'));
+dlStl.addEventListener('click', () => requestExport('stl'));
+newBtn.addEventListener('click', () => {
+  pickGen++; // invalidate any pick still loading, so a late downscale cannot undo this reset
+  buildGen++; // invalidate any build still in flight (mock timer / fetch)
+  clearTimeout(mockTimerId);
+  mockTimerId = null;
+  clearTimeout(readyTimer);
+  clearTimeout(buildTimer);
+  readyTimer = null;
+  buildTimer = null;
+  pendingCode = null;
+  pendingTrace = null;
+  awaitingBuild = false;
+  pendingExport = null;
+  currentBuildToken = null;
+  currentExportToken = null;
+  hasGoodModel = false;
+  lastGoodName = 'model';
+  pendingBuildCode = null;
+  viewerWrap.style.display = 'none';
+  objNameEl.textContent = '';
+  currentName = 'model';
+  dlGlb.disabled = true;
+  dlObj.disabled = true;
+  dlStl.disabled = true;
+  thumb.src = '';
+  thumb.style.display = 'none';
+  imageDataUrl = null;
+  fileInput.value = '';
+  camInput.value = '';
+  makeBtn.disabled = !MOCK;
+  setStatus('');
+  // Reload the iframe so a hung viewer recovers without a page reload.
+  reloadViewerIframe();
+});
+
+if (MOCK === 'smiley' || MOCK === 'cup') {
+  makeBtn.disabled = false;
+  setStatus('Demo mode. Tap "Make 3D model" — no sketch needed.');
+}
+</script>
+</body>
+</html>

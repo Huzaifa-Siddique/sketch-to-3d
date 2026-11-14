@@ -1,0 +1,1 @@
+{"dependencies":{"jsdom":"^31.0.1","three":"0.160.0"},"description":"Sketch to 3D: a hand-drawn sketch becomes a Three.js model. The /api/generate.js serverless function needs the three package (0.160.0) for its server-side model check — Vercel installs it from this file.","name":"sketch-to-3d","private":true,"version":"1.0.0"}
