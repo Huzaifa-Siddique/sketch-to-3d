@@ -6179,14 +6179,21 @@ async function tryGemini(imageDataUrl, timeoutMs) {
     };
   }
   if (res.status === 404) return { ok: false, status: 404, message: PLAIN_ERRORS.modelGone, retryable: true, crossRetryable: true, provider, model: cfg.model };
-  if (!res.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, provider, model: cfg.model };
+  // V3 R22.2 (live 2026-11-15): tag the upstream failure so the error
+  // body says WHY Gemini failed — a Google 5xx (upstreamStatus 500/503)
+  // is a different problem from an unparsable reply (failStage extract).
+  if (!res.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, failStage: 'upstream', upstreamStatus: res.status, provider, model: cfg.model };
   let data;
   try {
     data = await res.json();
   } catch (err) {
-    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, provider, model: cfg.model };
+    return { ok: false, status: 502, message: PLAIN_ERRORS.provider, retryable: true, crossRetryable: true, failStage: 'json', provider, model: cfg.model };
   }
-  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  // V3 R22.2: the compat endpoint may return message.content as an array
+  // of parts instead of a string — join text parts before parsing, so a
+  // valid reply is never lost to a type mismatch.
+  let text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (Array.isArray(text)) text = text.map((p) => (typeof p === 'string' ? p : (p && p.text) || '')).join('');
   const found = extractResult(text);
   if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'extract', provider, model: cfg.model };
   if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'safety', provider, model: cfg.model };
@@ -6251,7 +6258,12 @@ async function tryProviderChain(imageDataUrl) {
   }
   if (!stopped && providerConfigured('gemini') && chainRemainingMs(start) >= MIN_FALLBACK_MS) {
     const m = await tryGemini(imageDataUrl, Math.min(FALLBACK_PROVIDER_TIMEOUT_MS, chainRemainingMs(start)));
-    attempts.push({ provider: 'gemini', model: GEMINI_MODEL, status: m.ok ? 200 : m.status, rateLimitKind: m.rateLimitKind });
+    // V3 R22.2: carry the diagnostic tags (failStage / upstreamStatus)
+    // into the attempts record so a failed Gemini leg says exactly why.
+    const gemRec = { provider: 'gemini', model: GEMINI_MODEL, status: m.ok ? 200 : m.status, rateLimitKind: m.rateLimitKind };
+    if (m.failStage) gemRec.failStage = m.failStage;
+    if (m.upstreamStatus) gemRec.upstreamStatus = m.upstreamStatus;
+    attempts.push(gemRec);
     if (m.ok) return { ok: true, code: m.code, objectName: m.objectName, model: m.model, provider: 'gemini' };
     last = m;
   }
