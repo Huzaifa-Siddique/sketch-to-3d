@@ -1317,14 +1317,21 @@ const FALLBACK_MODEL = 'google/gemma-4-31b-it:free';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // V3 R22: the fallback provider. It reads its OWN key from its OWN
 // env var (GEMINI_API_KEY) — never the OpenRouter key.
-// Gemini model: gemini-3.8-flash, verified on Google's official models
-// page (Stable version, image input supported). Gemini uses Google's
+// Gemini model: gemini-3.6-flash. V3 R22.3 (live 2026-11-15 02:47 PKT):
+// gemini-3.8-flash returns HTTP 503 (overloaded) on this free-tier key
+// on every live attempt (tagged failStage 'upstream', upstreamStatus 503
+// in R22.2), so the chain can never succeed through it right now.
+// 3.6-flash is the older Stable Flash on Google's models page (verified
+// by the R22 builder) — same OpenAI-compat endpoint, same request shape,
+// lower demand than the newest 3.8. If this also 503s, the free tier
+// itself is capacity-blocked and the fix waits on the OpenRouter reset
+// (05:00 PKT) or a paid tier. Gemini uses Google's
 // OpenAI-compatible endpoint: base URL
 // https://generativelanguage.googleapis.com/v1beta/openai/ (trailing
 // slash matters) + chat/completions, Bearer auth, same chat-completions
 // request/response shape as OpenRouter — verified in Google's OpenAI
 // compatibility doc, including its image-understanding section.
-const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODEL = 'gemini-3.6-flash';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const MAX_TOKENS = 5000;
 // 2500 was too small: the primary model spends most of its completion
