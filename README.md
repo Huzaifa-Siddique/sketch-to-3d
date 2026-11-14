@@ -89,3 +89,8 @@ screen.
 - `vercel.json` — minimal config (clean URLs only).
 - `BUILD-REPORT-V1.md` — what was tested, live vs mock, and what the key
   unlocks.
+
+## Deployment
+
+The site deploys from GitHub. Push to the `main` branch and Vercel
+deploys it to https://sketch-to-3d-ochre.vercel.app automatically.
