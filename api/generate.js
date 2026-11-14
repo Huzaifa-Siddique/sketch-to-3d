@@ -1342,18 +1342,16 @@ const FETCH_TIMEOUT_MS = 100000;
 // repo — the deployed build evidently allowed 87.3s, but 100s+ must be
 // re-measured live after deploy (see the R2 build report).
 
-// V3 R22: time budget for the whole provider chain. The browser aborts
-// at 120s and one live OpenRouter attempt took 87.3s, so the chain is
-// capped at 110s total from the handler's first call; a fallback only
-// starts when at least MIN_FALLBACK_MS remain (a shorter window cannot
-// produce a meaningful attempt, so the original error is returned
-// instead of starting a doomed one). Per-provider caps: OpenRouter
-// keeps its 100s FETCH_TIMEOUT_MS (the primary path is unchanged);
-// Gemini is a fast inference endpoint and is capped at 60s,
-// further capped by the remaining budget.
+// V3 R22.1 (live 2026-11-15 02:15 PKT): Gemini's compat endpoint is NOT
+// fast — two live smiley attempts timed out at the 60s cap (failStage
+// 'timeout'), and even a bare unauthenticated request took 13s to 400.
+// So the Gemini cap is raised to 85s: the OpenRouter leg takes ~20-25s
+// when rate-limited, leaving ~85s of the 110s budget for Gemini, and
+// the cap is still further capped by the remaining budget, so the total
+// can never exceed 110s (browser aborts at 120s).
 const TOTAL_BUDGET_MS = 110000;
 const MIN_FALLBACK_MS = 30000;
-const FALLBACK_PROVIDER_TIMEOUT_MS = 60000;
+const FALLBACK_PROVIDER_TIMEOUT_MS = 85000;
 
 const SYSTEM_PROMPT = [
   'You are a 3D model builder. Look at the hand-drawn sketch in the image and build that object as Three.js code from simple shapes.',
