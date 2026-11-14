@@ -1424,6 +1424,14 @@ function errorExtra(r) {
   const extra = {};
   if (r.rateLimitKind) extra.rateLimitKind = r.rateLimitKind;
   if (r.checkReason) extra.checkReason = r.checkReason;
+  // TEMPORARY DIAGNOSTIC (key fix, 15 Nov 2026): on a check failure,
+  // echo the generated code + parts so the failing model output can be
+  // inspected and the gate reproduced locally. The code is the model's
+  // output for the user's own sketch (success already returns it); the
+  // browser ignores these fields. Remove once the key is fixed.
+  if (r.debugCode) extra.debugCode = r.debugCode;
+  if (r.debugParts) extra.debugParts = r.debugParts;
+  if (r.debugObjectName) extra.debugObjectName = r.debugObjectName;
   // V3 R22: when the chain tried more than one provider, say which
   // providers were tried and what each returned (status + rate-limit
   // kind where known). Records carry provider/model/status only — no
@@ -6134,7 +6142,7 @@ async function tryModel(model, imageDataUrl, timeoutMs) {
   if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'extract' };
   if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'safety' };
   const check = verifyBuild(found.code, found.parts, found.objectName);
-  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason };
+  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason, debugCode: found.code, debugParts: found.parts, debugObjectName: found.objectName };
   return { ok: true, code: found.code, objectName: found.objectName, model, parts: found.parts };
 }
 
@@ -6205,7 +6213,7 @@ async function tryGemini(imageDataUrl, timeoutMs) {
   if (!found) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'extract', provider, model: cfg.model };
   if (!codeLooksSafe(found.code)) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'safety', provider, model: cfg.model };
   const check = verifyBuild(found.code, found.parts, found.objectName);
-  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason, provider, model: cfg.model };
+  if (!check.ok) return { ok: false, status: 502, message: PLAIN_ERRORS.badCode, retryable: true, crossRetryable: true, failStage: 'check', checkReason: check.reason, provider, model: cfg.model, debugCode: found.code, debugParts: found.parts, debugObjectName: found.objectName };
   return { ok: true, code: found.code, objectName: found.objectName, model: cfg.model, provider, parts: found.parts };
 }
 
