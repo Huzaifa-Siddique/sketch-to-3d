@@ -12,8 +12,11 @@
 // (curved line = tube, filled oval = flattened sphere), token-free example.
 // Reply contract unchanged: OBJECT + PARTS + buildModel still parse the
 // same way (verified: new format parses to 4 parts, old format still works).
-// The OpenRouter key lives ONLY in the OPENROUTER_API_KEY env var.
-// It is never logged, never sent to the browser, never written to any file.
+// The OpenRouter keys live ONLY in env vars: OPENROUTER_API_KEY (key 1)
+// plus OPENROUTER_API_KEY_2, _3, _4, ... — any number, stopping at the
+// first missing one (V3 R24 multi-key rotation). They are never logged,
+// never sent to the browser, never written to any file, and never appear
+// in any attempts record (no key identity is recorded anywhere).
 //
 // 2026-11-13 prompt fix (user live test: B&W pencil smiley came back as a
 // bare yellow sphere, no eyes, no smile):
@@ -1375,9 +1378,9 @@ const SYSTEM_PROMPT = [
   'Features must sit ON the body\'s surface and stick out from it — never buried inside the body, and never floating in front of it. A feature hidden inside the body is invisible and wrong; a feature floating off the surface is detached and wrong.',
   'For a round body (a sphere) of radius R, every feature\'s back must touch the sphere surface — the feature follows the sphere\'s curvature. A feature at (x, y) must have its back at z = surfaceZ(x, y), the sphere surface at that point, and its centre at z = surfaceZ(x, y) + (feature thickness / 2). The mouth tube\'s points must lie ON the sphere surface: compute the sphere surface z at each (x, y) along the curve — never place the tube at one fixed z for all its points, because the surface curves away from the centre and a fixed z leaves the ends floating. The eyes must be FLATTENED spheres (flatten them with the mesh scale — scale z about 0.3 on the mesh, do not bake the scale into the geometry) whose back touches the sphere surface — never full spheres stuck on the face. Put the eyes at x = ±0.35R and y = +0.29R (0.35R left and right of centre), and never rotate or tilt the eyes — they sit flat on the face, tall axis vertical. There are exactly two eyes, and the two eyes are the SAME size — never one bigger than the other. There is exactly ONE mouth — never two smiles. There is exactly ONE body — never a second sphere or shape behind it. Build ONLY the parts in the PARTS list — never add a nose, an extra mouth, or any other feature the sketch does not show. Every listed feature is the size the sketch shows — never a huge bar across the face; a listed eyebrow or nose is a small feature, never wider than the face. Each eye is about 0.21 wide x 0.31 tall (0.26R x 0.39R). The eyes and mouth are pencil BLACK — pure black or grey, never blue, purple, red or any tinted colour. Put the mouth centre at y = -0.45R and x = 0, spanning x = ±0.47R, ends at y ≈ -0.31R and bottom at y ≈ -0.59R (depth about 0.27R). The mouth is a smile — its ends are higher than its centre, the centre is the lowest point. The eyes are tall ovals, about 1.5 times as tall as they are wide — never round, never wider than tall, never triangular or square — a filled solid oval, the shape of a flattened sphere. The eyes are smooth ovals — never a polygon with straight edges, a pointed lens, or a rectangle. The mouth is a THIN tube (radius about 0.02 to 0.03), not a thick one — a curved tube, never a flat bar: a straight flat bar is not a smile. The smile is a smooth curve — never a sharp V with a corner at its centre. For a flat body, a feature\'s back must touch the body\'s front face, with its centre at front-face z + (feature thickness / 2).',
   'Build a COMPLETE 3D object, not a flat picture. The object has real depth: a front, a back and sides. The back is a proper back of the SAME object, inferred from what the object is — never blank, never a flat slab, never missing. The back mirrors the front shape: for a smiley, the back of the sphere is a plain white/grey sphere back with no face; for a key, the back is the same ring, shaft and teeth seen from behind.',
-  'Every part must have real depth, at least 0.05 (5% of the model size). A smiley body is a full sphere — round in every view, never a box or a square — not a disc. A key bow is a ring (torus) with real thickness, its shaft is a box about 0.15 thick, its teeth form one connected stepped shape with real thickness. Never build a part as a flat plane or a paper-thin extrusion — a thin slab is wrong.',
+  'Every part must have real depth, at least 0.05 (5% of the model size). A smiley body is a full sphere — round in every view, never a box or a square — not a disc. A key bow is a flat extruded disc with a small keyhole near the top, about 0.12 thick, its shaft is a box about 0.15 thick, its teeth form one connected stepped shape with real thickness. Never build a part as a flat plane or a paper-thin slab — a thin slab is wrong.',
   'The body is a round sphere in every view — never stretched tall, wide, or deep; its height equals its width from the front and its depth from the side.',
-  'For a key: the shaft must end in a POINTED tip — a cone or a V point at the bottom, not a flat end; the sketch has a clear V point. The pointed tip is a real point about 0.15 to 0.20 tall — never a stubby nub. The shaft is a straight vertical bar — never bent or curved. The shaft is a LONG bar, about 1.10 tall — never a short stub; the whole key is about 1.80 tall from bow top to tip. The shaft is a solid bar about 0.22 wide — never a hairline. The teeth must be a SINGLE connected stepped bitting shape (one connected stepped shape, not two separate boxes), extending about 0.26 beyond the shaft\'s LEFT edge, matching the sketch. Every tooth reaches about 0.20 to 0.26 beyond the shaft\'s LEFT edge — never a stub tooth that barely sticks out, and never longer than 0.50 beyond the shaft\'s edge. The stepped look comes from the steps sitting at different heights — never from making a step short: the middle step reaches at least 0.20 too, the same as the others. Vary the step lengths between 0.20 and 0.26 if you want a stepped look — never below 0.20. The bitting is a short stepped block near the bottom, about 0.25 tall, ending above the tip point — never so tall that it swallows the tip. Build the bitting as two or three THIN horizontal step boxes stacked and touching (each step about 0.12 to 0.16 tall) — never one tall vertical slab box: a single box 0.25 or taller is wrong. The whole bitting spans about 0.25 tall and never more than 0.30 — so use two steps of about 0.12 (total 0.24), or three steps of about 0.08 (total 0.24), stacked touching with no gaps between them. Three steps of 0.12 is 0.36 and is too tall — do not do that. Or build it as one ExtrudeGeometry with the stepped profile. The bow must be a full ring (torus) with real thickness — round, never square or diamond-shaped — sized to match the sketch. The bow\'s OUTER diameter is 2 x (ring radius + tube radius) and it must be 0.70 to 0.95, about 0.78 — never below 0.70. For example ring radius 0.33 with tube 0.06 gives 2 x 0.39 = 0.78, which is right. Ring radius 0.28 with tube 0.06 gives only 0.68 and is too small — do not use it. Do not shrink the bow. The bow ring touches the top of the shaft — it is joined to the shaft, never floating beside it. The bow sits at the top of the shaft, its centre at or just above the shaft top. A wide bow must sit low enough that the whole key still fits the 2 by 2 by 2 box: at the usual bow height the bow cannot be wider than 0.80 — a 0.95 bow only fits with the bow lowered.',
+  'For a key: the shaft must end in a POINTED tip — a cone or a V point at the bottom, not a flat end; the sketch has a clear V point. The pointed tip is a real point about 0.15 to 0.20 tall — never a stubby nub. The shaft is a straight vertical bar — never bent or curved. The shaft is a LONG bar, about 1.38 tall — never a short stub; the whole key is about 1.95 tall from bow top to tip. The shaft is a solid bar about 0.15 wide — never a hairline. The teeth must be a SINGLE connected stepped bitting shape (one connected stepped shape, not two separate boxes), extending about 0.22 beyond the shaft\'s LEFT edge, matching the sketch. Every tooth reaches about 0.20 to 0.26 beyond the shaft\'s LEFT edge — never a stub tooth that barely sticks out, and never longer than 0.50 beyond the shaft\'s edge. The stepped look comes from the steps sitting at different heights — never from making a step short: the middle step reaches at least 0.20 too, the same as the others. Vary the step lengths between 0.20 and 0.26 if you want a stepped look — never below 0.20. The bitting is a short stepped block near the bottom, about 0.41 tall, ending above the tip point — never so tall that it swallows the tip. Build the bitting as two or three THIN horizontal step boxes stacked and touching (each step about 0.12 to 0.16 tall) — never one tall vertical slab box: a single box 0.19 or taller is wrong. The whole bitting spans about 0.41 tall and never more than 0.48 — so use three steps of about 0.13 (total 0.39), stacked touching with no gaps between them. Three steps of 0.16 is 0.48 and is the absolute maximum — do not go above it. Or build it as one ExtrudeGeometry with the stepped profile. The bow is a FLAT DISC, not a ring or a donut: build it as one ExtrudeGeometry from a THREE.Shape circle of radius 0.30 with ONE hole — a small circle of radius 0.095 centred at (0, +0.13) inside the disc, near the top — extruded 0.12 deep with bevelEnabled false and curveSegments 48. The disc is round, never square or diamond-shaped. The bow\'s OUTER diameter is 0.60 — never below 0.55 and never above 0.68. The keyhole is SMALL: its diameter is about 0.19, about one third of the bow — never a big empty hole. The keyhole sits near the TOP inside the disc, its centre about 0.13 above the bow centre — never in the centre of the disc. The bow disc touches the top of the shaft — it is joined to the shaft, never floating beside it. The bow sits at the top of the shaft, its centre at or just above the shaft top. The whole key is TALL and slender: the total height is about 3.33 times the bow diameter (about 1.95 tall against a 0.60 bow) — never a squat key. A wide bow must sit low enough that the whole key still fits the 2 by 2 by 2 box: at the usual bow height the bow cannot be wider than 0.68.',
   'The pointed tip sticks out below the bottom of the shaft — the tip point is the lowest part of the key, never buried inside the shaft. Build ONLY the parts in the PARTS list for the key — never add an extra box, arm, tab or lump to the shaft, bow or tip.',
   'Example: a pencil smiley has 4 parts — a big white sphere body, two small black flattened-sphere eyes upper left and upper right, and a black curved-tube mouth lower centre. Its colours line lists only paper white and pencil black.',
   'No markdown fences. No backticks. No explanation. No extra text before or after.',
@@ -2676,8 +2679,13 @@ function keyBowDepth(bowObj, THREE) {
   // in world space. The hole check is a 2-D diameter in the bow's
   // plane, so a torus squashed in Z (depth 0.12 -> 0.03) kept hole
   // 0.52 / outer 0.76 and PASSED as a flat washer. The axis is the
-  // keyBowHoleDiameter argmax axis, carried into world space through
-  // the mesh matrixWorld rotation; the depth is the max-min
+  // bow normal from bowNormalAxis (V3 R24: the thinnest local bbox
+  // axis — the keyBowHoleDiameter argmax axis is WRONG for a disc
+  // with an offset keyhole, it picks a plane axis and the depth
+  // would read the bow's width instead of its thickness; for a
+  // torus the thinnest axis IS the torus axis, so all R15/R16
+  // torus fixtures read the same), carried into world space
+  // through the mesh matrixWorld rotation; the depth is the max-min
   // projection of the WORLD vertices onto that axis, so mesh-level
   // scale (bow.scale.z = 0.25) and baked geometry.scale both read
   // correctly. P7b 0.12, tube-tilt 0.10, Q2 0.03, scale 0.5 -> 0.06,
@@ -2687,7 +2695,8 @@ function keyBowDepth(bowObj, THREE) {
     if (!bowObj) return null;
     const hole = keyBowHoleDiameter(bowObj);
     if (!hole) return null;
-    const ax = hole.ax;
+    const ax = bowNormalAxis(bowObj);
+    if (ax === null) return null;
     const e = [0, 0, 0]; e[ax] = 1;
     const m = bowObj.matrixWorld && bowObj.matrixWorld.elements;
     let u;
@@ -2710,6 +2719,94 @@ function keyBowDepth(bowObj, THREE) {
     }
     if (!isFinite(mn) || !isFinite(mx)) return null;
     return { depth: round3(mx - mn), axis: ax, hole: hole.hole, outer: hole.outer };
+  } catch (e) { return null; }
+}
+function bowNormalAxis(bowObj) {
+  // V3 R24: the bow's normal (extrude / torus) axis — the local
+  // axis along which the bow's bbox is THINNEST. For a disc the
+  // extrude depth (0.12) is far thinner than the diameter (0.60);
+  // for a torus the tube (0.12) is far thinner than the outer
+  // diameter (0.78). The keyBowHoleDiameter argmax axis is NOT the
+  // normal for a disc with an offset keyhole (it picks a plane
+  // axis: the keyhole rim sits closer to the bow centre than any
+  // vertex sits to a plane axis), so the depth and keyhole
+  // measurements use this instead. Returns the axis index 0/1/2
+  // or null when unmeasurable.
+  try {
+    if (!bowObj) return null;
+    const vs = localVertices(bowObj.geometry);
+    if (!vs || !vs.length) return null;
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const v of vs) {
+      for (let k = 0; k < 3; k++) {
+        if (v[k] < mn[k]) mn[k] = v[k];
+        if (v[k] > mx[k]) mx[k] = v[k];
+      }
+    }
+    let ax = 0;
+    for (let k = 1; k < 3; k++) {
+      if ((mx[k] - mn[k]) < (mx[ax] - mn[ax])) ax = k;
+    }
+    return ax;
+  } catch (e) { return null; }
+}
+function keyBowKeyhole(bowObj, THREE) {
+  // V3 R24 (user verdict 15 Nov 2026): the sketch bow is a flat
+  // DISC with a SMALL keyhole near the TOP inside it — not a torus
+  // donut. The old hole bar (keyBowHoleDiameter >= 0.35) assumes a
+  // CENTRED hole: it reads 2x the minimum vertex distance from an
+  // axis, which for an offset keyhole under-reads (~0.07 for the
+  // new disc) and for a torus reads the big centred hole (~0.52).
+  // This helper measures the hole the way the sketch shows it: in
+  // the bow's front plane (the two local axes perpendicular to the
+  // bow normal from bowNormalAxis), take every vertex NOT on the
+  // outer rim (r <= 0.95 x outer radius) — for an extruded disc
+  // those are exactly the keyhole-rim vertices (earcut uses only
+  // contour vertices, so no other interior vertices exist); for a
+  // torus they are the inner tube band. Fit a circle to them
+  // (centre = mean, radius = mean distance from the centre):
+  // hole = 2 x radius, offsetUp = the fitted centre's signed
+  // distance above the bow centre along the bow's local up axis
+  // (local Y when it lies in the front plane, else the other
+  // plane axis). Returns { hole, offsetUp, outer, axis } or null
+  // when unmeasurable. Sketch-anchored (measured from the user's
+  // sketch screenshot, 15 Nov): bow 0.60, hole 0.19 (hole/bow
+  // 0.32), keyhole centre 0.13 above the bow centre (offset/bow
+  // 0.22). A torus reads hole/bow ~0.69 with offset ~0 (centred);
+  // a solid disc reads hole 0 (no interior vertices).
+  try {
+    if (!bowObj) return null;
+    const ax = bowNormalAxis(bowObj);
+    if (ax === null) return null;
+    const o = [0, 1, 2].filter((k) => k !== ax);
+    const vs = localVertices(bowObj.geometry);
+    if (!vs || !vs.length) return null;
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const v of vs) {
+      for (let k = 0; k < 3; k++) {
+        if (v[k] < mn[k]) mn[k] = v[k];
+        if (v[k] > mx[k]) mx[k] = v[k];
+      }
+    }
+    const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
+    const R = Math.max((mx[o[0]] - mn[o[0]]) / 2, (mx[o[1]] - mn[o[1]]) / 2);
+    if (!(R > 0)) return null;
+    const outer = round3(2 * R);
+    const upAx = o.indexOf(1) !== -1 ? 1 : o[0];
+    const inner = [];
+    for (const v of vs) {
+      const r = Math.hypot(v[o[0]] - c[o[0]], v[o[1]] - c[o[1]]);
+      if (r <= 0.95 * R) inner.push([v[o[0]], v[o[1]]]);
+    }
+    if (!inner.length) return { hole: 0, offsetUp: 0, outer: outer, axis: ax };
+    let mx0 = 0, my0 = 0;
+    for (const pt of inner) { mx0 += pt[0]; my0 += pt[1]; }
+    mx0 /= inner.length; my0 /= inner.length;
+    let rad = 0;
+    for (const pt of inner) rad += Math.hypot(pt[0] - mx0, pt[1] - my0);
+    rad /= inner.length;
+    const offUp = (upAx === o[0] ? mx0 - c[o[0]] : my0 - c[o[1]]);
+    return { hole: round3(2 * rad), offsetUp: round3(offUp), outer: outer, axis: ax };
   } catch (e) { return null; }
 }
 function bodyAxialGapRatio(bodyObj, bodyDesc, THREE, u, sign) {
@@ -5446,11 +5543,18 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       }
     }
     // V3 R9 (J2 N2): shaft LENGTH — the shaft's vertical span must
-    // be >= 1.00. A key with a 0.75-tall shaft (all parts connected,
-    // bow unchanged) PASSED every R8 check while the whole key was
-    // 19% short (total height 1.45 vs P7b 1.80) — nothing measured
-    // shaft length or key proportions. P7b's shaft spans 1.10
-    // (0.10 over the bar); the short shaft fails 0.25 under it.
+    // be >= 1.25 (R24: the sketch shaft is 1.41, measured from the
+    // user's sketch screenshot; P7b's 1.10 is now too short — the
+    // R23 key was too squat). A key with a 0.75-tall shaft (all
+    // parts connected, bow unchanged) PASSED every R8 check while
+    // the whole key was 19% short (total height 1.45 vs P7b 1.80)
+    // — nothing measured shaft length or key proportions. The new
+    // ideal key's shaft spans 1.38 (0.13 over the bar); P7b's 1.10
+    // fails 0.15 under it; the short shaft (0.75) fails 0.50 under
+    // it. R24 also adds a total/bow RATIO bar (3.0–3.6, sketch
+    // 3.33) at the bow-size site — a ratio, not a total-height
+    // bar, so the separation argument in the next paragraph still
+    // stands for absolute height.
     // Total key height is deliberately NOT a second bar: a
     // min-everything legitimate key (shaft 1.00, bow 0.70 at top
     // 1.00, tip 0.15) totals 1.70, while a stubby-tip key totals
@@ -5464,7 +5568,7 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
     // fails on bend first (above).
     {
       const shaftSpan = round3(shaftM.size[1]);
-      if (shaftSpan < 1.00) {
+      if (shaftSpan < 1.25) {
         // V3 R13 (J2 N1): the length reads the MATCHED segment, but
         // a split shaft's pieces together span the full length — the
         // old reason named only the segment (0.55) while the union
@@ -5497,10 +5601,10 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
           }
           if (intervals > 1 && gap > 0.005) {
             const union = round3(spans[spans.length - 1][1] - spans[0][0]);
-            return fail('key shaft is too short: the shaft is split into ' + pieces.length + ' pieces with a ' + gap + ' gap — the longest piece spans only ' + shaftSpan + ' vertically, and the pieces together span ' + union + ' (sketch: about 1.10 — the key is a long bar, bow top to tip about 1.80)', meshes, matches);
+            return fail('key shaft is too short: the shaft is split into ' + pieces.length + ' pieces with a ' + gap + ' gap — the longest piece spans only ' + shaftSpan + ' vertically, and the pieces together span ' + union + ' (sketch: about 1.41 — the key is a long bar, bow top to tip about 1.95)', meshes, matches);
           }
         }
-        return fail('key shaft is too short: the shaft spans only ' + shaftSpan + ' vertically (sketch: about 1.10 — the key is a long bar, bow top to tip about 1.80)', meshes, matches);
+        return fail('key shaft is too short: the shaft spans only ' + shaftSpan + ' vertically (sketch: about 1.41 — the key is a long bar, bow top to tip about 1.95)', meshes, matches);
       }
     }
     // V3 R10 (J2 M2a): shaft WIDTH — the shaft's width in its own
@@ -5517,7 +5621,7 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
     {
       const shaftW = shaftFrameWidth(meshObjs[meshes.indexOf(shaftM)], shaftM, THREE);
       if (shaftW !== null && shaftW < 0.08) {
-        return fail('key shaft is too thin: the shaft is only ' + shaftW + ' wide in its own frame (sketch: about 0.22 — the shaft is a solid bar, never a hairline)', meshes, matches);
+        return fail('key shaft is too thin: the shaft is only ' + shaftW + ' wide in its own frame (sketch: about 0.15 — the shaft is a solid bar, never a hairline)', meshes, matches);
       }
     }
     // (b) Teeth: one connected component, touching the shaft, long enough.
@@ -5625,11 +5729,16 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
     }
     const teethExtLeft = round3(shaftLeftAtTeeth - teethLocalMinX);
     const teethExtRight = round3(teethLocalMaxX - shaftRightAtTeeth);
-    if (!(teethExtLeft >= 0.20)) {
-      if (teethExtRight >= 0.20) {
+    // V3 R24: bar 0.20 -> 0.18. The sketch's own teeth reach only
+    // about 0.19 (measured from the user's sketch screenshot: 85px
+    // left of the shaft edge against a 262px bow), so a 0.20 bar
+    // rejects a faithful sketch. The mirror-stepped fixture (0.20)
+    // still passes; a bitting shorter than 0.18 still fails.
+    if (!(teethExtLeft >= 0.18)) {
+      if (teethExtRight >= 0.18) {
         return fail('key teeth are on the wrong side: they extend ' + round3(teethExtRight) + ' beyond the shaft\'s RIGHT edge but only ' + round3(teethExtLeft) + ' beyond the LEFT edge (the sketch teeth stick out on the left)', meshes, matches);
       }
-      return fail('key teeth are too short: they extend only ' + round3(teethExtLeft) + ' beyond the shaft\'s LEFT edge (sketch: 0.26)', meshes, matches);
+      return fail('key teeth are too short: they extend only ' + round3(teethExtLeft) + ' beyond the shaft\'s LEFT edge (sketch: about 0.19)', meshes, matches);
     }
     // V3 R9 (J2 N5): PER-TOOTH extent + position band — each tooth
     // in the set must reach AT LEAST 0.15 beyond the shaft's LEFT
@@ -5695,20 +5804,22 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       }
       const toothExt = round3(toothShaftLeft - tMinX);
       if (toothExt < 0.15) {
-        return fail('key tooth is the wrong size: a tooth extends only ' + toothExt + ' beyond the shaft\'s LEFT edge, but every tooth must reach at least 0.15 beyond it (the sketch teeth reach 0.20 and 0.26)', meshes, matches);
+        return fail('key tooth is the wrong size: a tooth extends only ' + toothExt + ' beyond the shaft\'s LEFT edge, but every tooth must reach at least 0.15 beyond it (the sketch teeth reach about 0.19)', meshes, matches);
       }
       if (toothExt > 0.50) {
-        return fail('key tooth is too long: a tooth extends ' + toothExt + ' beyond the shaft\'s LEFT edge, but no tooth reaches more than 0.50 beyond it (the sketch teeth reach 0.20 and 0.26)', meshes, matches);
+        return fail('key tooth is too long: a tooth extends ' + toothExt + ' beyond the shaft\'s LEFT edge, but no tooth reaches more than 0.50 beyond it (the sketch teeth reach about 0.19)', meshes, matches);
       }
       if (round3(t.centre[1]) >= round3(shaftM.centre[1])) {
         return fail('key tooth is in the wrong place: a tooth sits at y = ' + round3(t.centre[1]) + ', at or above the shaft centre (y = ' + round3(shaftM.centre[1]) + ') — the bitting lives in the lower shaft, near the bottom', meshes, matches);
       }
     }
     // V3 R6 teeth vertical span (J2 N7): the bitting must be a SHORT
-    // block near the bottom — vertical span <= 0.35 — and must END
-    // ABOVE the tip point. The sketch's bitting spans about
-    // 0.24–0.30 vertically and ends at about −0.69, above the tip;
-    // P7b spans 0.24 and ends 0.16 above its tip (−0.64 vs −0.80).
+    // block near the bottom — vertical span <= 0.48 (R24: the
+    // sketch's bitting spans about 0.41, measured from the user's
+    // sketch screenshot) — and must END ABOVE the tip point. The
+    // sketch's bitting spans about 0.41 vertically and ends at
+    // about −0.90, above the tip (−0.96); P7b spans 0.24 and ends
+    // 0.16 above its tip (−0.64 vs −0.80).
     // The over-tall bitting spans 0.55 (y −0.30…−0.85) and hangs
     // 0.05 BELOW its tip point, swallowing it. The tip point is the
     // actual tip cone's bottom when there is one, else the model's
@@ -5719,8 +5830,8 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
       teethMaxY = Math.max(teethMaxY, t.centre[1] + t.size[1] / 2);
     }
     const teethSpanY = round3(teethMaxY - teethMinY);
-    if (teethSpanY > 0.35) {
-      return fail('key teeth are too tall: the bitting spans ' + teethSpanY + ' vertically (sketch: about 0.24 to 0.30) — a bitting this tall swallows the tip point', meshes, matches);
+    if (teethSpanY > 0.48) {
+      return fail('key teeth are too tall: the bitting spans ' + teethSpanY + ' vertically (sketch: about 0.41) — a bitting this tall swallows the tip point', meshes, matches);
     }
     const tipY = tipConeIdx !== -1
       ? round3(meshes[tipConeIdx].centre[1] - meshes[tipConeIdx].size[1] / 2)
@@ -5763,25 +5874,32 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
         return fail('key tooth is the wrong shape: a ' + tType + ' at x = ' + round3(t.centre[0]) + ', y = ' + round3(t.centre[1]) + ' sits in the bitting — a tooth is a box, or part of one extruded stepped profile, never a cone, cylinder or sphere (the sketch bitting is a stepped block of boxes)', meshes, matches);
       }
     }
-    // (c) Bow shape + size (V3 R7, J2 C5f/C7f/g). The R6 bow check
-    // was diameter-only (>= 0.70), so a square/diamond bow (a
-    // 4-segment torus, outer 0.76) and a giant bow (outer 1.22/1.42,
-    // top y 1.23/1.33 — outside the 2x2x2 box) both passed. Three
-    // bars now: (i) SHAPE — the bow must be a full round ring, a
-    // TorusGeometry with tubularSegments >= 12, radialSegments >= 8
-    // and a full 2pi arc (a 4-segment diamond reads 0.5 on the
-    // silhouette and fails; a 12-segment ring reads 0.75 and
-    // passes; a square frame of boxes or a solid disc is not a
-    // torus at all and fails); (ii) SIZE — outer diameter in
-    // 0.70–0.95 (sketch about 0.78; P7b 0.76 passes with 0.19
-    // margin, giant 1.22 fails 0.27 above the bar). Under the stub
-    // (no geometry parameters) the shape bar is skipped, not
-    // failed (degrade mode).
+    // (c) Bow shape + size (V3 R7, J2 C5f/C7f/g; R24 disc).
+    // The R6 bow check was diameter-only (>= 0.70), so a
+    // square/diamond bow (a 4-segment torus, outer 0.76) and a
+    // giant bow (outer 1.22/1.42, top y 1.23/1.33 — outside the
+    // 2x2x2 box) both passed. R24 (user verdict 15 Nov 2026):
+    // the sketch bow is a flat DISC with a small keyhole near the
+    // top, NOT a torus donut — the R23 torus (outer 0.78, hole
+    // 0.52) is the wrong shape. Bars now: (i) SHAPE — the bow
+    // must be an ExtrudeGeometry disc (round: front-silhouette
+    // fill 0.70–0.85, a round disc fills ~0.785) or a TorusGeometry
+    // with tubularSegments >= 12, radialSegments >= 8 and a full
+    // 2pi arc (a 4-segment diamond reads 0.5 on the silhouette
+    // and fails); a square frame of boxes or a solid sphere is
+    // neither and fails; (ii) SIZE — outer diameter in 0.55–0.68
+    // (sketch about 0.60, measured from the user's sketch
+    // screenshot; the new ideal key's 0.60 passes, the R23
+    // torus's 0.78 fails 0.10 above the bar). Under the stub (no
+    // geometry parameters) the shape bar is skipped, not failed
+    // (degrade mode). The torus-vs-disc discriminator is the
+    // KEYHOLE check below, not the silhouette (both hulls are
+    // discs, fill ~0.785).
     {
       const bowObj = meshObjs[meshes.indexOf(bowM)];
       const bowGeo = bowObj && bowObj.geometry;
-      if (bowGeo && bowGeo.type !== 'TorusGeometry') {
-        return fail('key bow is the wrong shape: the bow is a ' + bowGeo.type + ', not a full ring (torus) — the sketch bow is a round ring', meshes, matches);
+      if (bowGeo && bowGeo.type !== 'TorusGeometry' && bowGeo.type !== 'ExtrudeGeometry') {
+        return fail('key bow is the wrong shape: the bow is a ' + bowGeo.type + ', not a flat disc with a keyhole — the sketch bow is a round disc with a small keyhole near the top, never a box or a sphere', meshes, matches);
       }
       if (bowGeo && bowGeo.type === 'TorusGeometry' && bowGeo.parameters
         && typeof bowGeo.parameters.tubularSegments === 'number') {
@@ -5790,35 +5908,79 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
         const arc = bowGeo.parameters.arc;
         if (tub < 12 || (typeof rad === 'number' && rad < 8)
           || (typeof arc === 'number' && arc < Math.PI * 2 - 0.01)) {
-          return fail('key bow is the wrong shape: the bow is a ' + tub + '-segment torus' + (typeof rad === 'number' ? ' (' + rad + ' radial segments)' : '') + ' — the sketch bow is a smooth round ring, never square or diamond-shaped', meshes, matches);
+          return fail('key bow is the wrong shape: the bow is a ' + tub + '-segment torus' + (typeof rad === 'number' ? ' (' + rad + ' radial segments)' : '') + ' — the sketch bow is a smooth round disc, never square or diamond-shaped', meshes, matches);
+        }
+      }
+      // V3 R24: a disc bow must be ROUND — a square/diamond disc
+      // (fill 1.0 / 0.5) fails, a round disc fills ~0.785. The
+      // torus branch above keeps its own segment/arc bar. The
+      // silhouette is the convex hull over the bbox, so it cannot
+      // tell a torus from a disc (both hulls are discs) — the
+      // keyhole check below is the discriminator.
+      if (bowGeo && bowGeo.type === 'ExtrudeGeometry') {
+        const fill = silhouetteFillRatio(bowObj, THREE, 'xy');
+        if (fill !== null && (fill < 0.70 || fill > 0.85)) {
+          return fail('key bow is the wrong shape: the bow disc fills ' + fill + ' of its bounding box (a round disc fills about 0.79) — the sketch bow is a round disc, never square or diamond-shaped', meshes, matches);
         }
       }
     }
     const bowD = round3(Math.max(bowM.size[0], bowM.size[1]));
-    if (!(bowD >= 0.70)) {
-      return fail('key bow is too small: outer diameter ' + round3(bowD) + ' (sketch: about 0.78)', meshes, matches);
+    if (!(bowD >= 0.55)) {
+      return fail('key bow is too small: outer diameter ' + round3(bowD) + ' (sketch: about 0.60)', meshes, matches);
     }
-    if (bowD > 0.95) {
-      return fail('key bow is too big: outer diameter ' + round3(bowD) + ' (sketch: about 0.78, never above 0.95)', meshes, matches);
+    if (bowD > 0.68) {
+      return fail('key bow is too big: outer diameter ' + round3(bowD) + ' (sketch: about 0.60, never above 0.68)', meshes, matches);
     }
-    // V3 R15 (J2 H7): BOW HOLE — the R14 bow check measured only the
-    // outer diameter, so a solid torus (ring 0.20 / tube 0.20, outer
-    // 0.80, NO hole) and a pinhole ring (hole 0.24 vs sketch ~0.52)
-    // both passed as a solid black ball. The inner hole is measured
-    // vertex-by-vertex (keyBowHoleDiameter): the largest, over the
-    // three local axes, of twice the minimum perpendicular distance
-    // of a vertex from the axis — for a torus that is the hole
-    // diameter (P7b 0.52, tube-tilt 0.56, fat bow 0.00, pinhole
-    // 0.24). Bar hole >= 0.35 (fixture-calibrated, not sketch-
-    // anchored: the sketch bow is cropped at the top, so its hole is
-    // an estimate, about 0.52; the bar sits between the pinhole 0.24
-    // and P7b 0.52). Runs after the outer-size checks, so a too-small
-    // bow still fails on size first.
+    // V3 R24 (user verdict 15 Nov 2026): TOTAL HEIGHT / BOW —
+    // the model key was too squat (total/bow 2.17) while the sketch
+    // is tall and slender (total/bow 3.33, measured from the user's
+    // sketch screenshot: bow 262px, total height 874px). A key
+    // whose bow is the right size but whose shaft is short still
+    // reads squat, and the shaft-length bar alone (1.25) does not
+    // catch a key that is short overall. Bar 3.0–3.6 (sketch 3.33).
+    // minY/maxY are the model's lowest/highest points, computed at
+    // the top of the key block.
+    {
+      const totalH = round3(maxY - minY);
+      const ratio = bowD > 0 ? round3(totalH / bowD) : 0;
+      if (ratio < 3.0) {
+        return fail('key is too squat: total height ' + totalH + ' is only ' + ratio + 'x the bow diameter ' + bowD + ' (sketch: about 3.33x — the bow is only about 30% of the total key height, the shaft is long and slender)', meshes, matches);
+      }
+      if (ratio > 3.6) {
+        return fail('key is too tall: total height ' + totalH + ' is ' + ratio + 'x the bow diameter ' + bowD + ' (sketch: about 3.33x)', meshes, matches);
+      }
+    }
+    // V3 R24 (user verdict 15 Nov 2026): BOW KEYHOLE — replaces
+    // the R15 hole bar. The sketch bow is a DISC with a SMALL
+    // keyhole near the TOP inside it, not a torus donut. The old
+    // bar (keyBowHoleDiameter >= 0.35) assumed a CENTRED hole and
+    // would read ~0.07 for the new disc (under-read) while passing
+    // a torus (0.52). keyBowKeyhole fits a circle to the bow's
+    // interior vertices: bars hole/bow 0.22–0.42 and keyhole-centre
+    // offset/bow 0.10–0.32 UPWARD. Sketch-anchored (measured from
+    // the user's sketch screenshot): hole 0.19 / bow 0.60 = 0.32,
+    // offset 0.13 / bow 0.60 = 0.22. A torus reads hole/bow ~0.69
+    // with offset ~0 (centred) and fails; a solid disc reads hole
+    // 0 and fails. Runs after the size check, so a too-small bow
+    // still fails on size first.
     {
       const bowObjHole = meshObjs[meshes.indexOf(bowM)];
-      const bowHole = keyBowHoleDiameter(bowObjHole);
-      if (bowHole !== null && bowHole.hole < 0.35) {
-        return fail('key bow has no real hole: the bow ring is solid (hole diameter ' + bowHole.hole + ', sketch: about 0.52, bar 0.35) — the sketch bow is a ring with a real hole through it, never a solid disc', meshes, matches);
+      const kh = keyBowKeyhole(bowObjHole, THREE);
+      if (kh !== null) {
+        const holeRatio = kh.outer > 0 ? round3(kh.hole / kh.outer) : 0;
+        const offRatio = kh.outer > 0 ? round3(kh.offsetUp / kh.outer) : 0;
+        if (kh.hole <= 0 || holeRatio < 0.22) {
+          return fail('key bow has no real keyhole: the keyhole diameter is ' + kh.hole + ' against a bow of ' + kh.outer + ' (hole/bow ' + holeRatio + ', sketch: about 0.32) — the sketch bow is a disc with a small keyhole inside it, never a solid disc', meshes, matches);
+        }
+        if (holeRatio > 0.42) {
+          return fail('key bow keyhole is too big: the keyhole diameter is ' + kh.hole + ' against a bow of ' + kh.outer + ' (hole/bow ' + holeRatio + ', sketch: about 0.32, never above 0.42) — the sketch bow has a SMALL keyhole, not a big empty donut hole', meshes, matches);
+        }
+        if (offRatio < 0.10) {
+          return fail('key bow keyhole is in the wrong place: the keyhole centre sits only ' + kh.offsetUp + ' above the bow centre (offset/bow ' + offRatio + ', sketch: about 0.22 upward) — the sketch keyhole sits near the TOP inside the disc, never centred', meshes, matches);
+        }
+        if (offRatio > 0.32) {
+          return fail('key bow keyhole sits too high: the keyhole centre sits ' + kh.offsetUp + ' above the bow centre (offset/bow ' + offRatio + ', sketch: about 0.22, never above 0.32)', meshes, matches);
+        }
       }
     }
     // V3 R16 (J2 H10): BOW DEPTH — the hole check is a 2-D diameter
@@ -5975,7 +6137,7 @@ function verifyBuildWithThree(code, parts, objectName, THREE) {
         if (round3(bMin[a]) < -1.02) { breach = axes[a] + ' = ' + round3(bMin[a]); break; }
       }
       if (breach) {
-        boxReason = 'model is too big: the key bow (outer diameter ' + round3(Math.max(b.size[0], b.size[1])) + ') reaches ' + breach + ' — the bow is too wide/high; the whole model must fit inside a 2 by 2 by 2 box centred at the origin — lower the bow or shrink it (at the usual bow height the bow cannot be wider than 0.80)';
+        boxReason = 'model is too big: the key bow (outer diameter ' + round3(Math.max(b.size[0], b.size[1])) + ') reaches ' + breach + ' — the bow is too wide/high; the whole model must fit inside a 2 by 2 by 2 box centred at the origin — lower the bow or shrink it (at the usual bow height the bow cannot be wider than 0.68)';
       }
     }
     return fail(boxReason, meshes, matches);
@@ -6085,13 +6247,35 @@ async function callChatCompletions(cfg, imageDataUrl, timeoutMs) {
   }
 }
 
+// V3 R24 multi-key rotation (user order 15 Nov 2026 — he will give
+// multiple API keys from multiple accounts tomorrow). openRouterKeys()
+// reads OPENROUTER_API_KEY (key 1) plus OPENROUTER_API_KEY_2, _3, _4,
+// ... — any number, stopping at the first missing one. The keys are
+// never logged, never returned to the browser, never written to a file,
+// and no key identity is recorded in any attempts record. With only
+// the one existing key, behaviour is unchanged (a single-element list).
+function openRouterKeys() {
+  const keys = [];
+  const first = process.env.OPENROUTER_API_KEY;
+  if (!first) return keys;
+  keys.push(first);
+  for (let i = 2; ; i++) {
+    const k = process.env['OPENROUTER_API_KEY_' + i];
+    if (!k) break;
+    keys.push(k);
+  }
+  return keys;
+}
+
 // OpenRouter call, kept as a named wrapper so tryModel reads exactly as
 // before: same URL, same key env var, same Referer/Title headers, same
 // reasoning cap. `timeoutMs` defaults to FETCH_TIMEOUT_MS (100s).
-async function callOpenRouter(model, imageDataUrl, timeoutMs) {
+// `apiKey` overrides the env key (used by tryModelWithKeys); callers
+// that omit it get the existing key-1 behaviour.
+async function callOpenRouter(model, imageDataUrl, timeoutMs, apiKey) {
   return callChatCompletions({
     url: OPENROUTER_URL,
-    apiKey: process.env.OPENROUTER_API_KEY,
+    apiKey: apiKey || process.env.OPENROUTER_API_KEY,
     model,
     includeReasoning: true,
     extraHeaders: {
@@ -6119,10 +6303,10 @@ async function callOpenRouter(model, imageDataUrl, timeoutMs) {
 //   (400/403 used to fall through to the generic 502 retryable path;
 //   that wasted the fallback call on a request that would fail the
 //   same way there.)
-async function tryModel(model, imageDataUrl, timeoutMs) {
+async function tryModel(model, imageDataUrl, timeoutMs, apiKey) {
   let res;
   try {
-    res = await callOpenRouter(model, imageDataUrl, timeoutMs);
+    res = await callOpenRouter(model, imageDataUrl, timeoutMs, apiKey);
   } catch (err) {
     // V3 R2: a timeout is NON-retryable. The fallback would cost a second
     // 100s wait (~200s total) against the browser's 120s abort, so the
@@ -6141,7 +6325,11 @@ async function tryModel(model, imageDataUrl, timeoutMs) {
     // here means "do not try the fallback model"; the user may retry
     // after a minute for the 'minute' kind, per the message). V3 R22:
     // the CHAIN may still try Gemini (crossRetryable: true) —
-    // that is the point of the fallback provider.
+    // that is the point of the fallback provider. V3 R24: this 429
+    // reaches here only after tryModelWithKeys has already rotated
+    // through EVERY configured key for this model — a 429 here means
+    // all keys are exhausted, so the user sees the limit message
+    // only then, never while another key still has quota.
     const kind = await parseRateLimitKind(res);
     return {
       ok: false, status: 429,
@@ -6166,12 +6354,34 @@ async function tryModel(model, imageDataUrl, timeoutMs) {
   return { ok: true, code: found.code, objectName: found.objectName, model, parts: found.parts };
 }
 
+// V3 R24: one model, every key in order. On a 429 (rate limit) move
+// SILENTLY to the next key and retry — the user must never see a limit
+// error while any key still has quota. The first NON-429 result wins
+// (success, or a 400/401/402/403/502 failure — those are not key
+// exhaustion, so there is nothing to gain from another key). Only when
+// ALL keys return 429 is the last 429 returned, so the daily-limit
+// message appears only then. A 429 comes back fast (an immediate
+// rejection, not a timeout), so rotating costs ~1s per extra key and
+// cannot blow the chain budget. No key identity is recorded: the
+// attempts record keeps its existing { provider, model, status,
+// rateLimitKind } shape.
+async function tryModelWithKeys(model, imageDataUrl, timeoutMs) {
+  const keys = openRouterKeys();
+  let last = null;
+  for (let i = 0; i < keys.length; i++) {
+    const r = await tryModel(model, imageDataUrl, timeoutMs, keys[i]);
+    if (r.status !== 429) return r;
+    last = r;
+  }
+  return last || { ok: false, status: 429, message: PLAIN_ERRORS.rateLimitDay, retryable: false, crossRetryable: true, rateLimitKind: 'day' };
+}
+
 function chainRemainingMs(start) {
   return TOTAL_BUDGET_MS - (Date.now() - start);
 }
 
 function providerConfigured(name) {
-  if (name === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
+  if (name === 'openrouter') return openRouterKeys().length > 0;
   if (name === 'gemini') return !!process.env.GEMINI_API_KEY;
   return false;
 }
@@ -6249,7 +6459,7 @@ async function tryGemini(imageDataUrl, timeoutMs) {
 // record per model tried: { provider, model, status, rateLimitKind? }).
 async function tryOpenRouter(imageDataUrl, start) {
   const attempts = [];
-  const first = await tryModel(PRIMARY_MODEL, imageDataUrl, Math.min(FETCH_TIMEOUT_MS, chainRemainingMs(start)));
+  const first = await tryModelWithKeys(PRIMARY_MODEL, imageDataUrl, Math.min(FETCH_TIMEOUT_MS, chainRemainingMs(start)));
   attempts.push({ provider: 'openrouter', model: PRIMARY_MODEL, status: first.ok ? 200 : first.status, rateLimitKind: first.rateLimitKind });
   if (first.ok) return { ok: true, code: first.code, objectName: first.objectName, model: first.model, provider: 'openrouter', attempts };
   if (!first.retryable) return { ...first, provider: 'openrouter', attempts };
@@ -6259,7 +6469,7 @@ async function tryOpenRouter(imageDataUrl, start) {
     ? Math.min(FETCH_TIMEOUT_MS, remaining - MIN_FALLBACK_MS)
     : Math.min(FETCH_TIMEOUT_MS, remaining);
   if (gemmaTimeout < MIN_FALLBACK_MS) return { ...first, provider: 'openrouter', attempts };
-  const second = await tryModel(FALLBACK_MODEL, imageDataUrl, gemmaTimeout);
+  const second = await tryModelWithKeys(FALLBACK_MODEL, imageDataUrl, gemmaTimeout);
   attempts.push({ provider: 'openrouter', model: FALLBACK_MODEL, status: second.ok ? 200 : second.status, rateLimitKind: second.rateLimitKind });
   if (second.ok) return { ok: true, code: second.code, objectName: second.objectName, model: second.model, provider: 'openrouter', attempts };
   return { ...second, provider: 'openrouter', attempts };
@@ -6318,7 +6528,7 @@ module.exports = async (req, res) => {
   // specifically the OpenRouter one — the chain can start at Gemini
   // when OpenRouter has no key. With no key at all the 503 is
   // unchanged.
-  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) return sendError(res, 503, PLAIN_ERRORS.noKey);
+  if (openRouterKeys().length === 0 && !process.env.GEMINI_API_KEY) return sendError(res, 503, PLAIN_ERRORS.noKey);
 
   let body = req.body;
   if (typeof body === 'string') {
@@ -6348,6 +6558,8 @@ module.exports = async (req, res) => {
 module.exports._extractResult = extractResult;
 module.exports._codeLooksSafe = codeLooksSafe;
 module.exports._tryModel = tryModel;
+module.exports._tryModelWithKeys = tryModelWithKeys;
+module.exports._openRouterKeys = openRouterKeys;
 module.exports._verifyBuild = verifyBuild;
 module.exports._verifyBuildWithThree = verifyBuildWithThree;
 module.exports._stubThree = stubThree;
@@ -6378,6 +6590,8 @@ module.exports._bodySphereFitCentre = bodySphereFitCentre;
 module.exports._worldFaceOf = worldFaceOf;
 module.exports._keyBowHoleDiameter = keyBowHoleDiameter;
 module.exports._keyBowDepth = keyBowDepth;
+module.exports._keyBowKeyhole = keyBowKeyhole;
+module.exports._bowNormalAxis = bowNormalAxis;
 module.exports._bodyAxialGapRatio = bodyAxialGapRatio;
 module.exports._bodyConeSearchRim = bodyConeSearchRim;
 module.exports._bodyConeSecondRim = bodyConeSecondRim;
